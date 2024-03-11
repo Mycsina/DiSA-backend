@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "pi-backend"
+name = "DiSA-backend"
 version = "0.1.0"
 description = ""
 authors = ["Mycsina <andremacardoso@gmail.com>"]
