@@ -3,13 +3,23 @@ import hashlib
 from http.client import HTTPException
 import io
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from passlib.context import CryptContext
+import jwt
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.responses import FileResponse
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 
 app = FastAPI()
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+SECRET_KEY = "ThIsIsAsEcReTkEy"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="users/login")
+
 
 class DocumentDoi(BaseModel):
     doi: str
@@ -29,9 +39,18 @@ class Document(BaseModel):
     access_from_data: Optional[datetime] = None # date from which the document is accessible
     history: Optional[List[dict]] = None # list of dictionaries with the history of the document
 
+class User(BaseModel):
+    username: str
+    email: str
+    password: str
+    role: str
+    access_control_list: Optional[List[str]] = None # list of documents that the user has access to
+
+
 documents = []
 document_dois = []
 access_logs = []
+users = []
 
 @app.get("/")
 async def root():
@@ -58,11 +77,14 @@ async def get_documents():
     return documents
 
 @app.get("/documents/{doi}")
-async def get_document(doi: str):
+async def get_document(doi: str, token: str = Depends(oauth2_scheme)):
+    user = decode_token(token)
     for doc_doi in document_dois:
         if doc_doi.doi == doi:
-            access_logs.append({"doi": doi, "access_date": datetime.now()})
-            return documents[doc_doi.document_id]
+            document = documents[doc_doi.document_id]
+            if document.access_control_list is None or (users["role"] == "admin" or users["username"] in documents[doc_doi.document_id].access_control_list):
+                access_logs.append({"doi": doi, "access_date": datetime.now()})
+                return document
     raise HTTPException(status_code=404, detail="Document not found")
 
 @app.put("/documents/{doi}")
@@ -124,3 +146,46 @@ async def get_document_access_logs(doi: str):
         if log["doi"] == doi:
             result.append(log)
     return result
+
+
+
+
+
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def decode_token(token: str):
+    try:
+        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return decoded_token
+    except:
+        raise HTTPException(status_code=401, detail="Could not validate credentials")
+
+@app.post("/users/register")
+async def register_user(user: User):
+    users.password = get_password_hash(user.password)
+    users.append(user.dict())
+    return {"message": "User registered successfully"}
+
+@app.post("/users/login")
+async def login_user(form_data: OAuth2PasswordRequestForm = Depends()):
+    for user in users:
+        if user.username == form_data.username:
+            if verify_password(form_data.password, user["password"]):
+                access_token = create_access_token(data={"sub": user.username})
+                return {"access_token": access_token, "token_type": "bearer"}
+    raise HTTPException(status_code=400, detail="Incorrect username or password")
