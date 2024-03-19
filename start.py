@@ -14,8 +14,6 @@ from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 
-#TODO: fazer o history dos documentos
-
 app = FastAPI()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -129,6 +127,8 @@ async def get_document(doi: str, user_id: uuid.UUID, token: str = Depends(oauth2
             access_logs.append({"doi": doi, "access_date": datetime.now(), "user": users[user_id].username})
             if doc_set.access_from_data is not None and datetime.now() < doc_set.access_from_data:
                 raise HTTPException(status_code=403, detail="Document not accessible yet")
+            for doc in doc_set.collection:
+                doc.history.append("set accessed by " + users[user_id].username + " on " + str(datetime.now()))
             return doc_set
     elif doi in documents_doi_sets.values(): #it is a document
         set_doi = documents_doi_sets[doi]
@@ -138,6 +138,7 @@ async def get_document(doi: str, user_id: uuid.UUID, token: str = Depends(oauth2
             access_logs.append({"doi": doi, "access_date": datetime.now(), "user": users[user_id].username})
             if document.access_from_data is not None and datetime.now() < document.access_from_data:
                 raise HTTPException(status_code=403, detail="Document not accessible yet")
+            document.history.append("document accessed by " + users[user_id].username + " on " + str(datetime.now()))
             return doc_set.collection[doi]    
     raise HTTPException(status_code=404, detail="Document not found")
 
@@ -166,6 +167,7 @@ async def update_document(doi: str, document: Document, user_id: uuid.UUID, toke
                 document.submission_date = doc.submission_date
                 document.last_update = datetime.now()
                 document.history = doc.history
+                document.history.append("document updated by " + users[user_id].username + " on " + str(datetime.now()))
                 collection.remove(doc)
                 collection.append(document)
                 doc_set.collection = collection
@@ -228,7 +230,10 @@ async def get_document_history(doi: str, user_id: uuid.UUID, token: str = Depend
         raise HTTPException(status_code = 404, detail = "Invalid user")
     for doc in documents_doi_sets.values():
         if doc.doi == doi:
-            return doc.history
+            if doc.access_control_list is None or (users["role"] == "admin" or users["username"] in doc.access_control_list) or doc.owner == users[user_id].username:
+                if doc.access_from_data is not None and datetime.now() < doc.access_from_data:
+                    raise HTTPException(status_code=403, detail="Document not accessible yet")
+                return doc.history
     raise HTTPException(status_code=404, detail="Document not found")
 
 # download a document
@@ -240,6 +245,9 @@ async def download_document(doi: str, user_id: uuid.UUID, token: str = Depends(o
         if doc.doi == doi:
             if doc.access_control_list is None or (users["role"] == "admin" or users["username"] in doc.access_control_list) or doc.owner == users[user_id].username:
                 access_logs.append({"doi": doi, "access_date": datetime.now(), "user": users[user_id].username})
+                if doc.access_from_data is not None and datetime.now() < doc.access_from_data:
+                    raise HTTPException(status_code=403, detail="Document not accessible yet")
+                doc.history.append("document downloaded by " + users[user_id].username + " on " + str(datetime.now()))
                 return FileResponse(io.BytesIO(doc.content), filename=doc.name)
     raise HTTPException(status_code=404, detail="Document not found")
 
@@ -248,11 +256,23 @@ async def download_document(doi: str, user_id: uuid.UUID, token: str = Depends(o
 async def get_document_access_logs(doi: str, user_id: uuid.UUID, token: str = Depends(oauth2_scheme)):
     if not is_valid_user(user_id, token):
         raise HTTPException(status_code = 404, detail = "Invalid user")
-    result = []
-    for log in access_logs:
-        if log["doi"] == doi:
-            result.append(log)
-    return result
+    results = []
+    if doi in sets_doi.keys(): # it is a set
+        doc_set = documents_set[doi]
+        if doc_set.owner == users[user_id].username or users["role"] == "admin":
+            for log in access_logs:
+                if log["doi"] == doi:
+                    results.append(log)
+            return results
+    elif doi in documents_doi_sets.values(): # it is a document
+        set_doi = documents_doi_sets[doi]
+        doc_set = documents_set[set_doi]
+        if doc_set.owner == users[user_id].username or users["role"] == "admin":
+            for log in access_logs:
+                if log["doi"] == doi:
+                    results.append(log)
+            return results
+    raise HTTPException(status_code=404, detail="Document not found")
 
 
 
