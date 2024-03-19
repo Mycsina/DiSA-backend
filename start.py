@@ -42,7 +42,7 @@ class Document(BaseModel):
 class User(BaseModel):
     username: str
     email: str
-    password: str
+    mobile_key: str
     role: str
     access_control_list: Optional[List[str]] = None # list of documents that the user has access to
 
@@ -152,11 +152,7 @@ async def get_document_access_logs(doi: str):
 
 
 
-def get_password_hash(password):
-    return pwd_context.hash(password)
 
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
@@ -177,7 +173,7 @@ def decode_token(token: str):
 
 @app.post("/users/register")
 async def register_user(user: User):
-    users.password = get_password_hash(user.password)
+    users.mobile_key = users.mobile_key
     users.append(user.dict())
     return {"message": "User registered successfully"}
 
@@ -185,7 +181,7 @@ async def register_user(user: User):
 async def login_user(form_data: OAuth2PasswordRequestForm = Depends()):
     for user in users:
         if user.username == form_data.username:
-            if verify_password(form_data.password, user["password"]):
+            if form_data.password == user.mobile_key:
                 access_token = create_access_token(data={"sub": user.username})
                 return {"access_token": access_token, "token_type": "bearer"}
     raise HTTPException(status_code=400, detail="Incorrect username or password")
