@@ -2,7 +2,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from classes.collection import Document, Collection
-from classes.event import DeleteEvent, Event, UpdateEvent
+from classes.event import Delete
 
 
 _COLLECTION_STORE: List[Collection] = []
@@ -43,4 +43,4 @@ def update_collection(collection_id: UUID, file):
 def delete_collection(collection_id: UUID):
     for i, col in enumerate(_COLLECTION_STORE):
         if col.id == collection_id:
-            col = col.history.append(DeleteEvent(col.owner))
+            col = col.history.append(Delete(col.owner))
