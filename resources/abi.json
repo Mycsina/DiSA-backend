@@ -1,0 +1,76 @@
+[
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "originalHash",
+				"type": "bytes32"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "processedHash",
+				"type": "bytes32"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "url",
+				"type": "uint256"
+			}
+		],
+		"name": "certificateStored",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "originalHash",
+				"type": "bytes32"
+			}
+		],
+		"name": "hashStored",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "originalHash",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "processedHash",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "uint256",
+				"name": "url",
+				"type": "uint256"
+			}
+		],
+		"name": "storeCertificate",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "originalHash",
+				"type": "bytes32"
+			}
+		],
+		"name": "storeHash",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+]
