@@ -1,10 +1,13 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from uuid import UUID
 
-from fastapi import HTTPException
 import jwt
+from fastapi import HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
+
+from storage.user import get_user_by_id
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -26,8 +29,14 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 
 def decode_token(token: str):
-    try:
-        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return decoded_token
-    except:
-        raise HTTPException(status_code=401, detail="Could not validate credentials")
+    decoded_token = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    return decoded_token
+
+
+def verify_user(user_id: UUID, token: str):
+    user = get_user_by_id(user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    decoded_token = decode_token(token)
+    if decoded_token != user.token:
+        raise HTTPException(status_code=404, detail="Authentication failed")
