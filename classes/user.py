@@ -11,8 +11,14 @@ class UserRole(str, Enum):
 
 
 class User(BaseModel):
-    user_id: UUID = uuid.uuid4()
+    id: UUID = uuid.uuid4()
     username: str
-    token: str
     email: str
+    oauth_token: str
+    token: str
     role: UserRole = UserRole.USER
+
+    def __init__(self, username: str, email: str, oauth_token: str):
+        self.username = username
+        self.email = email
+        self.oauth_token = oauth_token

@@ -1,28 +1,37 @@
 from datetime import datetime
 from uuid import UUID
+from enum import Enum
 
 from pydantic import BaseModel
+
+
+class EventTypes(str, Enum):
+    ACCESS = "access"
+    CREATE = "create"
+    UPDATE = "update"
+    DELETE = "delete"
 
 
 class Event(BaseModel):
     user_id: UUID
     timestamp: datetime = datetime.now()
+    type: EventTypes
 
     def __init__(self, user_id: UUID):
         self.user_id = user_id
 
 
-class Create(Event):
-    pass
+class AccessEvent(Event):
+    type = EventTypes.ACCESS
 
 
-class Update(Event):
-    pass
+class CreateEvent(Event):
+    type = EventTypes.CREATE
 
 
-class Delete(Event):
-    pass
+class UpdateEvent(Event):
+    type = EventTypes.UPDATE
 
 
-class Share(Event):
-    pass
+class DeleteEvent(Event):
+    type = EventTypes.DELETE
