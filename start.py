@@ -1,38 +1,30 @@
-import base64
-import hashlib
 import io
 import uuid
-from datetime import datetime, timedelta, timezone
+from uuid import UUID
+from datetime import datetime
 from http.client import HTTPException
 from typing import Dict, List, Optional
 
-import jwt
 from fastapi import Depends, FastAPI, File, UploadFile
 from fastapi.responses import FileResponse
-from fastapi.security import OAuth2PasswordBearer
-from passlib.context import CryptContext
 
-from classes import Document, DocumentSet, User, UserRole
+
+from classes.commons import SharedState
+from classes.document import Document, DocumentSet
+from classes.event import Event, Create, Update, Delete, Share
+from classes.user import User, UserRole
+
+from security import oauth2_scheme, create_access_token, decode_token
 
 app = FastAPI()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-SECRET_KEY = "ThIsIsAsEcReTkEy"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="users/login")
-
-documents_set = Dict[str, DocumentSet]  # list of DocumentSet (key is the set name)
-sets_doi: List[str] = []  # list of DOIs of the sets
-documents_doi_sets = Dict[
-    str, str
-]  # dictionary of DOIs of the documents and the DOI of the set they belong to (key is the set DOI)
-access_logs = List[Dict[str, str]]  # list of dictionaries with the access logs of the documents
-users: Dict[uuid.UUID, User] = {}  # list of dictionaries with the users (key is the user_id)
+documents_collection = Dict[UUID, DocumentSet]  # list of DocumentSet (key is the set name)
+docs_in_cols = Dict[UUID, List[UUID]]  # mappping of documents to their collections
+access_logs = Dict[UUID, List[Event]]  # mappping of documents to their access logs
+users: Dict[UUID, User] = {}  # list of dictionaries with the users (key is the user_id)
 
 
-def raise_if_not_valid_user(user_id: uuid.UUID, token: str = Depends(oauth2_scheme)):
+def raise_if_not_valid_user(user_id: UUID, token: str = Depends(oauth2_scheme)):
     if user_id not in users.keys():
         raise HTTPException(status_code=404, detail="User not found")
     this_user_token = users[user_id].token
@@ -47,57 +39,30 @@ async def root():
     return {"message": "Welcome to DiSA"}
 
 
-# create/upload a new document
+# create/upload a new document collection
 @app.post("/documents/")
 async def create_document(
     file: UploadFile = File(...),
-    user_id: uuid.UUID = None,
-    share_state: str = "private",
-    access_control_list=None,
+    user_id: UUID = None,
+    share_state: SharedState = SharedState.private,
     token: str = Depends(oauth2_scheme),
 ):
     raise_if_not_valid_user(user_id, token)
     date_time = datetime.now()
-    set_name = str(user_id) + str(date_time)
+    set_name = str(user_id) + " " + str(date_time)
     content = await file.read()
-    document_hash = hashlib.sha256(content).digest()
-    doi = base64.urlsafe_b64encode(document_hash).decode("utf-8")
-    document = Document(
-        name=file.filename,
-        content=content,
-        doi=doi,
-        type=file.content_type,
-        size=file.size,
-        submission_date=date_time,
-        last_update=date_time,
-        access_control_list=access_control_list,
-        history=["created by " + users[user_id].username + " on " + str(date_time)],
+
+    document = Document(name=file.filename, content=content)
+    document.history.append(Create(user_id))
+
+    document_set = DocumentSet(
+        set_name=set_name,
+        collection=[document],
+        share_state=share_state,
+        owner=user_id,
     )
-    if set_name in documents_set.keys():
-        documents_doi_sets[documents_set[set_name].doi].append(doi)
-        documents_set[set_name].collection.append(document)
-        documents_set[set_name].num += 1
-        documents_set[set_name].last_update = datetime.now()
-    else:
-        set_hash = hashlib.sha256(set_name).digest()
-        set_doi = base64.urlsafe_b64encode(set_hash).decode("utf-8")
-        documents_doi_sets[set_doi] = doi
-        user_name = users[user_id].username
-        document_set = DocumentSet(
-            doi=set_doi,
-            set_name=set_name,
-            collection=[document],
-            num=1,
-            submission_date=datetime.now(),
-            last_update=datetime.now(),
-            share_state=share_state,
-            owner=user_name,
-            access_control_list=None,
-            access_from_data=None,
-        )
-        documents_set[set_name] = document_set
-        sets_doi.append(set_doi)
-    return {"message": "Document created successfully", "doi": doi}
+    documents_collection[set_name] = document_set
+    return {"message": "Document created successfully", "name": set_name}
 
 
 # get documents_sets
@@ -107,8 +72,8 @@ async def create_document(
 
 
 # get a document a document set or a document by its DOI
-@app.get("/documents/{doi}")
-async def get_document(doi: str, user_id: uuid.UUID, token: str = Depends(oauth2_scheme)):
+""" @app.get("/documents/{doi}")
+async def get_document(doi: str, user_id: UUID, token: str = Depends(oauth2_scheme)):
     raise_if_not_valid_user(user_id, token)
     if doi in sets_doi.keys():  # it is a set
         doc_set = documents_set[doi]
@@ -138,21 +103,17 @@ async def get_document(doi: str, user_id: uuid.UUID, token: str = Depends(oauth2
             document.history.append("document accessed by " + users[user_id].username + " on " + str(datetime.now()))
             return doc_set.collection[doi]
     raise HTTPException(status_code=404, detail="Document not found")
+ """
 
 
-# update a document
-@app.put("/documents/{doi}")
-async def update_document(doi: str, document: Document, user_id: uuid.UUID, token: str = Depends(oauth2_scheme)):
+# update a document collection
+@app.put("/documents/{doc_uuid}")
+async def update_document(doc_uuid: UUID, document: Document, user_id: UUID, token: str = Depends(oauth2_scheme)):
     raise_if_not_valid_user(user_id, token)
-    if doi in documents_doi_sets.values():  # it is a document
-        set_doi = documents_doi_sets[doi]
-    elif doi in sets_doi.keys():  # it is a set
-        set_doi = doi
-    else:
+    if doc_uuid not in documents_collection.keys():
         raise HTTPException(status_code=404, detail="Document(s) not found")
-    doc_set = documents_set[set_doi]
+    doc_set = documents_collection[doc_uuid]
     if doc_set.owner == users[user_id].username:
-        # delete the previous document with that doi and add the new one
         collection = doc_set.collection
         for doc in collection:
             if doc.doi == document.doi:
@@ -174,7 +135,7 @@ async def update_document(doi: str, document: Document, user_id: uuid.UUID, toke
 
 # delete a document or a document set
 @app.delete("/documents/{doi}")
-async def delete_document(doi: str, user_id: uuid.UUID, token: str = Depends(oauth2_scheme)):
+async def delete_document(doi: str, user_id: UUID, token: str = Depends(oauth2_scheme)):
     raise_if_not_valid_user(user_id, token)
     if doi in sets_doi.keys():  # it is a set
         doc_set = documents_set[doi]
@@ -194,7 +155,7 @@ async def delete_document(doi: str, user_id: uuid.UUID, token: str = Depends(oau
 
 # search for a specific document
 @app.get("/documents/search/{query}")
-async def search_documents(query: str, user_id: uuid.UUID, token: str = Depends(oauth2_scheme)):
+async def search_documents(query: str, user_id: UUID, token: str = Depends(oauth2_scheme)):
     raise_if_not_valid_user(user_id, token)
     result = []
     for doc in documents_doi_sets.values():
@@ -214,7 +175,7 @@ async def filter_documents(
     type: Optional[str] = None,
     size: Optional[int] = None,
     owner: Optional[str] = None,
-    user_id: uuid.UUID = None,
+    user_id: UUID = None,
     token: str = Depends(oauth2_scheme),
 ):
     raise_if_not_valid_user(user_id, token)
@@ -237,7 +198,7 @@ async def filter_documents(
 
 # get the history of a document
 @app.get("/documents/history/{doi}")
-async def get_document_history(doi: str, user_id: uuid.UUID, token: str = Depends(oauth2_scheme)):
+async def get_document_history(doi: str, user_id: UUID, token: str = Depends(oauth2_scheme)):
     raise_if_not_valid_user(user_id, token)
     for doc in documents_doi_sets.values():
         if doc.doi == doi:
@@ -254,7 +215,7 @@ async def get_document_history(doi: str, user_id: uuid.UUID, token: str = Depend
 
 # download a document
 @app.get("/documents/{doi}/download")
-async def download_document(doi: str, user_id: uuid.UUID, token: str = Depends(oauth2_scheme)):
+async def download_document(doi: str, user_id: UUID, token: str = Depends(oauth2_scheme)):
     raise_if_not_valid_user(user_id, token)
     for doc in documents_doi_sets.values():
         if doc.doi == doi:
@@ -273,7 +234,7 @@ async def download_document(doi: str, user_id: uuid.UUID, token: str = Depends(o
 
 # get the access logs of a document
 @app.get("/documents/{doi}/access_logs")
-async def get_document_access_logs(doi: str, user_id: uuid.UUID, token: str = Depends(oauth2_scheme)):
+async def get_document_access_logs(doi: str, user_id: UUID, token: str = Depends(oauth2_scheme)):
     raise_if_not_valid_user(user_id, token)
     results = []
     if doi in sets_doi.keys():  # it is a set
@@ -294,36 +255,18 @@ async def get_document_access_logs(doi: str, user_id: uuid.UUID, token: str = De
     raise HTTPException(status_code=404, detail="Document not found")
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(ACCESS_TOKEN_EXPIRE_MINUTES)
-    data.update({"exp": expire})
-    encoded_jwt = jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
-
-def decode_token(token: str):
-    try:
-        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return decoded_token
-    except:
-        raise HTTPException(status_code=401, detail="Could not validate credentials")
-
-
 # register users
-@app.post("/users/register")
-async def register_user(username: str, email: str, mobile_key: str, role: UserRole = UserRole.USER):
+@app.post("/users/")
+async def register_user(username: str, email: str, mobile_key: str):
     user_id = uuid.uuid4()
     token = create_access_token(data={"sub": user_id})
-    user = User(user_id=user_id, username=username, token=token, email=email, mobile_key=mobile_key, role=UserRole.USER)
+    user = User(user_id=user_id, username=username, token=token, email=email, mobile_key=mobile_key)
     users[user_id] = user
     return {"message": "User registered successfully"}
 
 
 # login users
-@app.post("/users/login")
+@app.get("/users/")
 async def login_user(username: str, mobile_key: str):
     for user in users:
         if user.username == username:
