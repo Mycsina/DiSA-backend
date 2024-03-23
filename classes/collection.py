@@ -93,4 +93,6 @@ class Collection(BaseModel):
         return self.structure.size
 
     def __iter__(self) -> Generator[Tuple[str, Any], None, None]:
-        self.structure.__iter__()
+        for item in self.structure:
+            yield item
+        # self.structure.__iter__()
