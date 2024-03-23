@@ -1,30 +1,29 @@
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
+from sqlalchemy.orm import Session
+import models
 from classes.user import User
 
-USERS: List[User] = []
+
+def create_user(db: Session, user: User) -> models.User:
+    db_user = models.User(
+        username=user.username,
+        email=user.email,
+        password=user.password,
+        id_token=user.id_token,
+        token=user.token,
+        role=user.role,
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
 
 
-def add_user(user: User):
-    USERS.append(user)
+def get_user_by_id(db: Session, user_id: UUID) -> Optional[models.User]:
+    return db.query(models.User).filter(models.User.id == user_id).first()
 
 
-def create_user(username: str, email: str, oauth_token: str) -> User:
-    user = User(username, email, oauth_token)
-    add_user(user)
-    return user
-
-
-def get_user_by_id(user_id: UUID) -> Optional[User]:
-    for user in USERS:
-        if user.id == user_id:
-            return user
-    return None
-
-
-def get_user_by_username(username: str) -> Optional[User]:
-    for user in USERS:
-        if user.username == username:
-            return user
-    return None
+def get_user_by_username(db: Session, username: str) -> Optional[models.User]:
+    return db.query(models.User).filter(models.User.username == username).first()

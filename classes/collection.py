@@ -6,8 +6,16 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from classes.commons import SharedState
 from classes.event import Event, Create
+
+from enum import Enum
+
+
+class SharedState(str, Enum):
+    private = "private"
+    public = "public"
+    embargoed = "embargoed"
+    restricted = "restricted"
 
 
 class Document(BaseModel):
