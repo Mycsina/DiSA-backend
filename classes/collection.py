@@ -7,7 +7,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from classes.commons import SharedState
-from classes.event import Event
+from classes.event import Event, Create
 
 
 class Document(BaseModel):
@@ -15,7 +15,6 @@ class Document(BaseModel):
     doc_id: UUID = uuid.uuid4()
     content: bytes
     size: int = None
-    submission_date: datetime = datetime.now()
     last_update: datetime = datetime.now()
     history: List[Event] = []  # list of events that happened to the document
 
@@ -23,6 +22,7 @@ class Document(BaseModel):
         self.name = name
         self.content = content
         self.size = len(content)
+        self.history.append(Create())
 
 
 class Directory(BaseModel):

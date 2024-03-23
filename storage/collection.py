@@ -2,7 +2,8 @@ from typing import List, Optional
 from uuid import UUID
 
 from classes.collection import Document, Collection
-from classes.event import Delete
+from classes.event import Delete, Update
+from classes.user import User
 
 
 _COLLECTION_STORE: List[Collection] = []
@@ -16,13 +17,14 @@ def get_collections() -> List[Collection]:
     return _COLLECTION_STORE
 
 
-def get_collection_by_id(doc_id: UUID) -> Optional[Collection]:
-    for doc in _COLLECTION_STORE:
-        if doc.id == doc_id:
-            return doc
+def get_collection_by_id(col_id: UUID) -> Optional[Collection]:
+    for col in _COLLECTION_STORE:
+        if col.id == col_id:
+            return col
 
 
-def create_collection(name: str, data: bytes, user_id: UUID):
+def create_collection(name: str, data: bytes, user: User):
+    user_id = user.id
     if name.split(".")[-1] == ["zip", "tar", "gz", "rar", "7z"]:
         # We're dealing with a zipped folder
         # TODO - implement this function
@@ -35,9 +37,14 @@ def create_collection(name: str, data: bytes, user_id: UUID):
         add_collection(collection)
 
 
-# TODO - implement this function
-def update_collection(collection_id: UUID, file):
-    pass
+def update_document(collection_id: UUID, doc_id: UUID, file):
+    for col in _COLLECTION_STORE:
+        if col.id == collection_id:
+            for doc in col.documents:
+                if doc.id == doc_id:
+                    doc.name = file.filename
+                    doc.data = file.read()
+                    doc.history.append(Update(doc.owner))
 
 
 def delete_collection(collection_id: UUID):
