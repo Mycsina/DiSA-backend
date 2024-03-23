@@ -1,29 +1,22 @@
 from typing import List, Optional
 from uuid import UUID
 
-from classes.collection import Document, Collection
-from classes.event import Delete, Update
+import storage.models as models
+from sqlalchemy.orm import Session
+
+import classes.collection as schema
 from classes.user import User
 
 
-_COLLECTION_STORE: List[Collection] = []
+def get_collections(db: Session) -> List[models.Collection]:
+    return db.query(models.Collection).all()
 
 
-def add_collection(collection):
-    _COLLECTION_STORE.append(collection)
+def get_collection_by_id(db: Session, col_id: UUID) -> Optional[models.Collection]:
+    return db.query(models.Collection).filter(models.Collection.id == col_id).first()
 
 
-def get_collections() -> List[Collection]:
-    return _COLLECTION_STORE
-
-
-def get_collection_by_id(col_id: UUID) -> Optional[Collection]:
-    for col in _COLLECTION_STORE:
-        if col.id == col_id:
-            return col
-
-
-def create_collection(name: str, data: bytes, user: User):
+def create_collection(db: Session, name: str, data: bytes, user: User) -> models.Collection:
     user_id = user.id
     if name.split(".")[-1] == ["zip", "tar", "gz", "rar", "7z"]:
         # We're dealing with a zipped folder
@@ -31,23 +24,34 @@ def create_collection(name: str, data: bytes, user: User):
         pass
     else:
         # We're dealing with a single document
-        document = Document(name, data)
+        document = schema.Document(name, data)
 
-        collection = Collection(name, user_id, [document])
-        add_collection(collection)
+        collection = schema.Collection(name, user_id, [document])
+        folder = models.Folder(name="root", parent_id=None)
+        collection = models.Collection(
+            name=collection.name,
+            owner=collection.owner,
+            root=folder.id,
+        )
+        db.add(collection)
+        db.commit()
+        db.refresh(collection)
+        return collection
 
 
-def update_document(collection_id: UUID, doc_id: UUID, file):
-    for col in _COLLECTION_STORE:
-        if col.id == collection_id:
-            for doc in col.documents:
-                if doc.id == doc_id:
-                    doc.name = file.filename
-                    doc.data = file.read()
-                    doc.history.append(Update(doc.owner))
+# TODO - implement this function
+def update_document(col_id: UUID, doc_id: UUID, file: bytes):
+    collection = get_collection_by_id(col_id)
+    pass
 
 
-def delete_collection(collection_id: UUID):
-    for i, col in enumerate(_COLLECTION_STORE):
-        if col.id == collection_id:
-            col = col.history.append(Delete(col.owner))
+# TODO - implement this function
+def delete_document(db: Session, col_id: UUID, doc_id: UUID):
+    collection = get_collection_by_id(db, col_id)
+    pass
+
+
+def delete_collection(db: Session, col_id: UUID):
+    db.query(models.Collection).filter(models.Collection.id == col_id).delete()
+    db.commit()
+    return True

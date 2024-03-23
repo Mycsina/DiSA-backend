@@ -2,7 +2,7 @@ from typing import Optional
 from uuid import UUID
 
 from sqlalchemy.orm import Session
-import models
+import storage.models as models
 from classes.user import User
 
 

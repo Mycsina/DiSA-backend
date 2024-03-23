@@ -1,7 +1,7 @@
 import math
 import uuid
 from datetime import datetime
-from typing import List, Optional, Union
+from typing import Any, Generator, List, Optional, Tuple, Union
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -61,6 +61,11 @@ class Directory(BaseModel):
             size += child.size
         return size
 
+    def __iter__(self) -> Generator[Tuple[str, Any], None, None]:
+        for item in self.children:
+            if item is Document:
+                yield Document
+
 
 class Collection(BaseModel):
     id: uuid.UUID = uuid.uuid4()
@@ -86,3 +91,6 @@ class Collection(BaseModel):
     @property
     def size(self):
         return self.structure.size
+
+    def __iter__(self) -> Generator[Tuple[str, Any], None, None]:
+        self.structure.__iter__()
