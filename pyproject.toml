@@ -5,14 +5,24 @@ description = ""
 authors = ["Mycsina <andremacardoso@gmail.com>"]
 readme = "README.md"
 
+[tool.isort]
+profile = "black"
+
 [tool.poetry.dependencies]
 python = "^3.11"
 amclient = "^1.3.0"
 fastapi = "^0.110.0"
 hypercorn = {extras = ["h3"], version = "^0.16.0"}
 aioquic = "^0.9.25"
-h3 = "^3.7.7"
+passlib = "^1.7.4"
+python-multipart = "^0.0.9"
+web3 = "^6.15.1"
+python-jose = { version = "^3.3.0", extras = ["cryptography"] }
 
+[tool.poetry.dev-dependencies]
+black = "^21.12b0"
+flake8 = "^4.0.1"
+isort = "^5.10.3"
 
 [build-system]
 requires = ["poetry-core"]
