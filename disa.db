@@ -1,0 +1,65 @@
+CREATE TABLE IF NOT EXISTS User (
+    user_id TEXT PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    token TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    mobile_key TEXT NOT NULL UNIQUE,
+    role TEXT NOT NULL CHECK(role IN ('user', 'admin')) DEFAULT 'user',
+);
+
+CREATE TABLE IF NOT EXISTS DocumentSet (
+    set_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    num_documents INTEGER NOT NULL,
+    submission_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_update DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    share_state TEXT NOT NULL CHECK(share_state IN ('private', 'public', 'embargoed', 'restricted')),
+    owner_id TEXT NOT NULL,
+    access_from_date DATETIME,
+    FOREIGN KEY(owner_id) REFERENCES User(user_id)
+);
+
+CREATE TABLE IF NOT EXISTS Document (
+    doc_id TEXT PRIMARY KEY,
+    set_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    content BLOB NOT NULL,
+    size INTEGER NOT NULL,
+    submission_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_update DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    access_from_date DATETIME
+    FOREIGN KEY(set_id) REFERENCES DocumentSet(set_id)
+);
+
+CREATE TABLE IF NOT EXISTS Event (
+    event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    doc_id TEXT NOT NULL,
+    timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    type TEXT NOT NULL CHECK(type IN ('accessed', 'downloaded', 'try to access', 'updated', 'created')),
+    FOREIGN KEY(user_id) REFERENCES User(user_id),
+    FOREIGN KEY(doc_id) REFERENCES Document(doc_id)
+);
+
+CREATE TABLE IF NOT EXISTS SetDoi (
+    set_id TEXT NOT NULL,
+    doi TEXT NOT NULL.
+    PRIMARY KEY(set_id, doi),
+    FOREIGN KEY(set_id) REFERENCES DocumentSet(set_id)
+);
+
+CREATE TABLE IF NOT EXISTS DocumentSetUserAccess (
+    set_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    PRIMARY KEY(set_id, user_id),
+    FOREIGN KEY(set_id) REFERENCES DocumentSet(set_id),
+    FOREIGN KEY(user_id) REFERENCES User(user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_document_set_id ON Document(set_id);
+CREATE INDEX IF NOT EXISTS idx_event_document_id ON Event(doc_id);
+CREATE INDEX IF NOT EXISTS idx_event_user_id ON Event(user_id);
+CREATE INDEX IF NOT EXISTS idx_set_doi_set_id ON SetDoi(set_id);
+CREATE INDEX IF NOT EXISTS idx_document_set_user_access_set_id ON DocumentSetUserAccess(set_id);
+CREATE INDEX IF NOT EXISTS idx_document_set_user_access_user_id ON DocumentSetUserAccess(user_id);
+
