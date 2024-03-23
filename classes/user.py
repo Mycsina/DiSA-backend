@@ -13,11 +13,10 @@ class UserRole(str, Enum):
 
 class User(BaseModel):
     id: UUID = uuid.uuid4()
-    username: str
-    password: Optional[str]
+    name: str
+    token: str
     email: str
-    id_token: Optional[str]
-    token: Optional[str]
+    mobile_key: str
     role: UserRole = UserRole.USER
 
     def __init__(self, username: str, email: str):
