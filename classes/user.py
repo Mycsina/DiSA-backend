@@ -13,6 +13,7 @@ class UserRole(str, Enum):
 class User(BaseModel):
     id: UUID = uuid.uuid4()
     username: str
+    password: str
     email: str
     oauth_token: str
     token: str
