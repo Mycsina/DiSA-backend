@@ -1,3 +1,4 @@
+from ast import Delete
 import math
 import uuid
 from datetime import datetime
@@ -7,7 +8,7 @@ from uuid import UUID
 from sqlmodel import Field, ForeignKey, SQLModel
 from pydantic import BaseModel
 
-from classes.event import Event, Create
+from classes.event import Access, Event, Create, Update
 
 from enum import Enum
 
@@ -46,7 +47,19 @@ class Document(SQLModel, table=True):
     def __init__(self, name: str, content: bytes):
         super().__init__(name=name, content=content)
         self.size = len(content)
-        self.history.append(Create())
+        self.history.append(Create(user=uuid.uuid4(), doc=self.id))
+
+    def access(self, user: UUID):
+        self.history.append(Access(user=user, doc=self.id))
+
+    def update(self, user:UUID, new_content: bytes):
+        self.content = new_content
+        self.size = len(new_content)
+        self.last_updated = datetime.now()
+        self.history.append(Update(user=user, doc=self.id))
+
+    def delete(self, user: UUID):
+        self.history.append(Delete(user=user, doc=self.id))
 
 
 # class Directory(BaseModel):

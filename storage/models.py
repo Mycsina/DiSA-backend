@@ -1,10 +1,11 @@
 from datetime import datetime
 import uuid
 
+from classes.event import Event
 from storage.main import Base
 # from sqlalchemy import UUID, Column, Enum, ForeignKey, String, Integer
 # from sqlalchemy.orm import relationship, attribute_keyed_dict
-from typing import Optional
+from typing import List, Optional
 from sqlmodel import Field, SQLModel, ForeignKey, Relationship
 
 from classes.user import UserRole
@@ -68,6 +69,7 @@ class Document(SQLModel, table=True):
     submission_date: datetime = Field(default_factory=datetime.now, nullable=False)
     last_updated: Optional[datetime] = Field(default=None)
     access_from_date: Optional[datetime] = Field(default=None)
+    history: List[Event] = Field(default_factory=list)
 
 
 # class Folder(Base):

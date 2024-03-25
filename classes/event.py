@@ -24,16 +24,24 @@ class Event(SQLModel, table=True):
 
 
 class Access(Event):
-    pass
+    def __init__(self, user: UUID, doc: str):
+        super().__init__(user=user, doc=doc)
+        self.type = "access"
 
 
 class Create(Event):
-    pass
+    def __init__(self, user: UUID, doc: str):
+        super().__init__(user=user, doc=doc)
+        self.type = "create"
 
 
 class Update(Event):
-    pass
+    def __init__(self, user: UUID, doc: str):
+        super().__init__(user=user, doc=doc)
+        self.type = "update"
 
 
 class Delete(Event):
-    pass
+    def __init__(self, user: UUID, doc: str):
+        super().__init__(user=user, doc=doc)
+        self.type = "delete"
