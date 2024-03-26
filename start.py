@@ -54,14 +54,13 @@ async def create_collection(
     user: Annotated[User, Depends(get_current_user)],
     file: UploadFile = File(...),
     share_state: SharedState = SharedState.private,
-    status_code=HTTPStatus.CREATED,
 ):
     with Session(engine) as session:
         name = file.filename
         if name is None:
             raise HTTPException(status_code=400, detail="No file name provided")
         data = await file.read()
-        collection = collections.create_collection(session, name, data, user)
+        collection = collections.create_collection(session, name, data, user, share_state)
 
         return {"message": "Collection created successfully", "uuid": collection.id}
 
@@ -75,7 +74,7 @@ async def get_all_collections(
 
 
 # TODO - test this
-@app.put("/collections/{collection_uuid}/{doc_uuid}")
+@app.put("/documents/{doc_uuid}")
 async def update_document(
     user: Annotated[User, Depends(get_current_user)],
     collection_uuid: UUID,
@@ -88,7 +87,7 @@ async def update_document(
             raise HTTPException(status_code=404, detail="Collection not found")
         if doc.owner != user.id:
             raise HTTPException(status_code=403, detail="You are not the owner of this document")
-        collections.update_collection(session, collection_uuid, doc_uuid, file)
+        collections.update_collection(session, doc_uuid, file)
 
 
 # TODO - test this
@@ -107,7 +106,7 @@ async def delete_collection(
 
 
 # TODO - test this
-@app.delete("/collections/{collection_uuid}/{doc_uuid}")
+@app.delete("/documents/{doc_uuid}")
 async def delete_document(
     user: Annotated[User, Depends(get_current_user)],
     collection_uuid: UUID,
@@ -124,7 +123,7 @@ async def delete_document(
 
 # TODO - test this
 # TODO - ability to search for a document specifically
-@app.get("/collections/{collection_uuid}/search")
+@app.get("/documents/search")
 async def search_documents(
     user: Annotated[User, Depends(get_current_user)],
     collection_uuid: UUID,
@@ -137,7 +136,7 @@ async def search_documents(
 # TODO - test this
 # TODO - ability to filter documents by type, size or owner
 # filter documents by type, size or owner
-@app.get("/collections/{collection_uuid}/filter")
+@app.get("/documents/filter")
 async def filter_documents(
     user: Annotated[User, Depends(get_current_user)],
     type: str | None = None,
@@ -151,7 +150,7 @@ async def filter_documents(
 # TODO - test this
 # TODO - get the history of a document
 # get the history of a document
-@app.get("/collections/{collection_uuid}/{doc_uuid}/history")
+@app.get("/documents/{doc_uuid}/history")
 async def get_document_history(
     user: Annotated[User, Depends(get_current_user)],
     collection_uuid: UUID,

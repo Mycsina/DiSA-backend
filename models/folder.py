@@ -30,5 +30,5 @@ class Folder(SQLModel, table=True):
     # )
     # children: list["Folder"] = Relationship(back_populates="parent")
 
-    # TODO - make documents aware of their parent folder
+    # TODO - make documents aware of their parent folder in ORM
     # TODO - make the relationships bidirectional so we get nice sweet ORM magic
