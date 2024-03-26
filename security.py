@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
+from os import getenv
 
+from dotenv import load_dotenv
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -11,7 +13,10 @@ from exceptions import BearerException
 from models.user import UserBase as User
 from storage.user import get_user_by_id, get_user_by_username
 
-SECRET_KEY = "78a6d789443db45e595153ec30f5708e47e97313d1273b1414beafc60d6ff05b"
+load_dotenv()
+
+SECRET_KEY = getenv("SECRET KEY")
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
