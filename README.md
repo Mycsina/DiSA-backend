@@ -15,3 +15,6 @@ You can start the server by running the following command:
 ```bash
   poetry run hypercorn start:app --reload
 ```
+
+# Need help?
+@mycsina on most platforms online

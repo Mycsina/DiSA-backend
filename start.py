@@ -1,16 +1,16 @@
 from http import HTTPStatus
-from typing import Annotated, List, Optional
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
+from sqlmodel import Session, SQLModel
 
 import storage.collection as collections
-import storage.user as users
-from classes.collection import Collection, SharedState
-from classes.user import User
-from exceptions import BearerException
+from exceptions import BearerException, CMDFailure
+from models.collection import Collection, SharedState
+from models.user import UserBase as APIUser
+from models.user import UserCMDCreate, UserCreate
 from security import (
     Token,
     create_access_token,
@@ -18,19 +18,16 @@ from security import (
     verify_session,
     verify_user,
 )
-from storage.main import Base, SessionLocal, engine
+from storage.main import engine
+from storage.user import create_cmd_user, create_user
 
 app = FastAPI()
-Base.metadata.create_all(bind=engine)
 
 
-# https://fastapi.tiangolo.com/tutorial/sql-databases/#create-a-dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# TODO - this is deprecated, implement new way of creating tables at startup
+@app.on_event("startup")
+def on_startup():
+    SQLModel.metadata.create_all(engine)
 
 
 @app.get("/")
@@ -40,134 +37,145 @@ async def root():
 
 @app.post("/collections/")
 async def create_collection(
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[APIUser, Depends(get_current_user)],
     file: UploadFile = File(...),
     share_state: SharedState = SharedState.private,
     status_code=HTTPStatus.CREATED,
 ):
-    name = file.filename
-    data = await file.read()
-    collection = collections.create_collection(name, data, user)
+    with Session(engine) as session:
+        name = file.filename
+        data = await file.read()
+        collection = collections.create_collection(session, name, data, user)
 
-    return {"message": "Collection created successfully", "uuid": collection.id}
+        return {"message": "Collection created successfully", "uuid": collection.id}
 
 
 @app.get("/collections/")
 async def get_all_collections(
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-) -> List[Collection]:
-    return collections.get_collections(db)
+    user: Annotated[APIUser, Depends(get_current_user)],
+) -> list[Collection]:
+    with Session(engine) as db:
+        return collections.get_collections(db)
 
 
 @app.put("/collections/{collection_uuid}/{doc_uuid}")
 async def update_document(
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[APIUser, Depends(get_current_user)],
     collection_uuid: UUID,
     doc_uuid: UUID,
     file: UploadFile,
 ):
-    doc = collections.get_collection_by_id(collection_uuid)
-    if doc is None:
-        raise HTTPException(status_code=404, detail="Collection not found")
-    if doc.owner != user.id:
-        raise HTTPException(status_code=403, detail="You are not the owner of this document")
-    collections.update_collection(collection_uuid, doc_uuid, file)
+    with Session(engine) as session:
+        doc = collections.get_collection_by_id(collection_uuid)
+        if doc is None:
+            raise HTTPException(status_code=404, detail="Collection not found")
+        if doc.owner != user.id:
+            raise HTTPException(status_code=403, detail="You are not the owner of this document")
+        collections.update_collection(session, collection_uuid, doc_uuid, file)
 
 
 @app.delete("/collections/{collection_uuid}")
 async def delete_collection(
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[APIUser, Depends(get_current_user)],
     collection_uuid: str,
 ):
-    doc = collections.get_collection_by_id(collection_uuid)
-    if doc is None:
-        raise HTTPException(status_code=404, detail="Collection not found")
-    if doc.owner != user.id:
-        raise HTTPException(status_code=403, detail="You are not the owner of this Collection")
-    collections.delete_collection(collection_uuid)
+    with Session(engine) as session:
+        doc = collections.get_collection_by_id(collection_uuid)
+        if doc is None:
+            raise HTTPException(status_code=404, detail="Collection not found")
+        if doc.owner != user.id:
+            raise HTTPException(status_code=403, detail="You are not the owner of this Collection")
+        collections.delete_collection(session, collection_uuid)
 
 
 @app.delete("/collections/{collection_uuid}/{doc_uuid}")
 async def delete_document(
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[APIUser, Depends(get_current_user)],
     collection_uuid: UUID,
     doc_uuid: UUID,
 ):
-    doc = collections.get_collection_by_id(doc_uuid)
-    if doc is None:
-        raise HTTPException(status_code=404, detail="Collection not found")
-    if doc.owner != user.id:
-        raise HTTPException(status_code=403, detail="You are not the owner of this Collection")
-    collections.delete_document(collection_uuid, doc_uuid)
+    with Session(engine) as session:
+        doc = collections.get_collection_by_id(doc_uuid)
+        if doc is None:
+            raise HTTPException(status_code=404, detail="Collection not found")
+        if doc.owner != user.id:
+            raise HTTPException(status_code=403, detail="You are not the owner of this Collection")
+        collections.delete_document(session, collection_uuid, doc_uuid)
 
 
 # TODO - ability to search for a document specifically
 @app.get("/collections/{collection_uuid}/search")
 async def search_documents(
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[APIUser, Depends(get_current_user)],
     collection_uuid: UUID,
     query: str,
 ):
-    pass
+    with Session(engine) as session:
+        pass
 
 
 # TODO - ability to filter documents by type, size or owner
 # filter documents by type, size or owner
 @app.get("/collections/{collection_uuid}/filter")
 async def filter_documents(
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
-    type: Optional[str] = None,
-    size: Optional[int] = None,
-    owner: Optional[str] = None,
+    user: Annotated[APIUser, Depends(get_current_user)],
+    type: str | None = None,
+    size: int | None = None,
+    owner: str | None = None,
 ):
-    pass
+    with Session(engine) as session:
+        pass
 
 
 # TODO - get the history of a document
 # get the history of a document
 @app.get("/collections/{collection_uuid}/{doc_uuid}/history")
 async def get_document_history(
-    user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[APIUser, Depends(get_current_user)],
     collection_uuid: UUID,
     doc_uuid: UUID,
 ):
-    pass
+    with Session(engine) as session:
+        pass
 
 
 # register user
 @app.post("/users/")
-async def register_user(db: Annotated[Session, Depends(get_db)], username: str, email: str, oauth_token: str):
-    user = users.create_user(username, email, oauth_token)
-    token = create_access_token(data={"sub": user.id})
-    user.token = token
-    users.USERS.append(user)
-    return {"message": f"User {username} created successfully", "token": token}
+async def register_user(user: UserCreate):
+    with Session(engine) as session:
+        user = create_user(session, user)
+        token = create_access_token(data={"sub": user.id})
+        user.token = token
+        return {"message": f"User {user.name} created successfully", "token": token}
+
+
+@app.post("/users/cmd")
+async def register_with_cmd(user: UserCMDCreate):
+    with Session(engine) as session:
+        user = create_cmd_user(session, user)
+        token = create_access_token(data={"sub": user.id})
+        user.token = token
+        return {"message": f"User {user.mobile_key} created successfully", "token": token}
 
 
 @app.get("/users/login/")
 async def login_with_user_password(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    db: Annotated[Session, Depends(get_db)],
 ) -> Token:
-    user = verify_user(form_data.username, form_data.password)
-    if user is None:
-        raise BearerException
-    access_token = create_access_token(data={"sub": user.user_id})
-    return Token(access_token=access_token, token_type="bearer")
+    with Session(engine) as session:
+        user = verify_user(session, form_data.username, form_data.password)
+        if user is None:
+            raise BearerException
+        access_token = create_access_token(data={"sub": user.user_id})
+        return Token(access_token=access_token, token_type="bearer")
 
 
 @app.get("users/login/cmd")
-async def login_with_cmd(db: Annotated[Session, Depends(get_db)], id_token: str, session_token: str) -> Token:
-    user = verify_session(id_token, session_token)
-    if user is None:
-        raise BearerException
-    access_token = create_access_token(data={"sub": user.user_id})
-    return Token(access_token=access_token, token_type="bearer")
+async def login_with_cmd(id_token: str, session_token: str) -> Token:
+    # TODO - this logic isn't that right
+    with Session(engine) as session:
+        user = verify_session(id_token, session_token)
+        if user is None:
+            raise CMDFailure
+        access_token = create_access_token(data={"sub": user.user_id})
+        return Token(access_token=access_token, token_type="bearer")

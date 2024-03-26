@@ -1,14 +1,14 @@
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
+from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
+from sqlmodel import Session
 
-from classes.user import User
 from exceptions import BearerException
+from models.user import UserBase as User
 from storage.user import get_user_by_id, get_user_by_username
 
 SECRET_KEY = "78a6d789443db45e595153ec30f5708e47e97313d1273b1414beafc60d6ff05b"
@@ -34,8 +34,8 @@ def password_verify(password: str, hashed_password: str):
     return pwd_context.verify(password, hashed_password)
 
 
-def verify_user(username: str, password: str) -> Optional[User]:
-    user = get_user_by_username(username)
+def verify_user(db: Session, username: str, password: str) -> User | None:
+    user = get_user_by_username(db, username)
     if not user:
         return
     if not password_verify(password, user.password):
@@ -43,15 +43,13 @@ def verify_user(username: str, password: str) -> Optional[User]:
     return user
 
 
-# TODO - this is for the CMD peeps
-def verify_session(id_token: str, session_token: str) -> Optional[User]:
+# TODO - this is for the CMD peeps, verify that the session exists with their token
+def verify_session(id_token: str, session_token: str) -> User | None:
     pass
 
 
 # https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/#handle-jwt-tokens
-def create_access_token(
-    data: dict, expires_delta: Optional[timedelta] = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-):
+def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
