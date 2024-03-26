@@ -14,12 +14,12 @@ class UserRole(str, Enum):
 
 
 class UserBase(SQLModel):
-    name: str | None
+    name: str | None = None
     email: str
-    password: str | None
-    mobile_key: str | None
-    token: str | None
-    role: UserRole | None
+    password: str | None = None
+    mobile_key: str | None = None
+    token: str | None = None
+    role: UserRole | None = UserRole.USER
 
 
 class UserCreate(UserBase):

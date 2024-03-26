@@ -29,8 +29,6 @@ class Document(DocumentBase, table=True):
     folder: UUID = Field(index=True, foreign_key="folder.id")
     submission_date: datetime = Field(default_factory=datetime.now)
 
-    folder: Folder = Relationship(back_populates="folder")
-
 
 class DocumentIntake(DocumentBase):
     content: bytes
@@ -74,4 +72,4 @@ class Collection(CollectionBase, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     root: UUID = Field(foreign_key="folder.id")
 
-    folder: "Folder" = Relationship(back_populates="folder")
+    # folder: "Folder" = Relationship(back_populates="folder")

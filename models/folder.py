@@ -44,10 +44,10 @@ class Folder(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     parent_id: UUID | None = Field(default=None, foreign_key="folder.id")
 
-    parent: Optional["Folder"] = Relationship(
-        back_populates="children", sa_relationship_kwargs=dict(remote_side="Folder.id")
-    )
-    children: list["Folder"] = Relationship(back_populates="parent")
+    # parent: Optional["Folder"] = Relationship(
+    #    back_populates="children", sa_relationship_kwargs=dict(remote_side="Folder.id")
+    # )
+    # children: list["Folder"] = Relationship(back_populates="parent")
 
     # TODO - make documents aware of their parent folder
     # TODO - make the relationships bidirectional so we get nice sweet ORM magic
