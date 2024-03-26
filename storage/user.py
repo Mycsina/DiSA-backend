@@ -28,7 +28,6 @@ def create_cmd_user(db: Session, user: UserCMDCreate) -> User:
 
 def update_user_token(db: Session, user: User, token: str) -> User:
     user.token = token
-    print(user)
     db.add(user)
     db.commit()
     return user

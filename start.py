@@ -185,7 +185,7 @@ async def login_with_user_password(
             raise BearerException
         access_token = create_access_token(data={"sub": str(user.id)})
         users.update_user_token(session, user, access_token)
-        return Token(access_token=access_token, token_type="bearer")
+        return Token(access_token=access_token, token_type="Bearer")
 
 
 # TODO - test this
@@ -199,4 +199,4 @@ async def login_with_cmd(id_token: str, session_token: str) -> Token:
             raise CMDFailure
         access_token = create_access_token(data={"sub": user.user_id})
         users.update_user_token(session, user, access_token)
-        return Token(access_token=access_token, token_type="bearer")
+        return Token(access_token=access_token, token_type="Bearer")
