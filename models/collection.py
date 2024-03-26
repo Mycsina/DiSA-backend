@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 from sqlmodel import Field, Relationship, SQLModel
 
 from models.event import Event
-from models.folder import Folder
+from models.folder import Folder, FolderIntake
 
 
 class SharedState(str, Enum):
@@ -26,33 +26,30 @@ class DocumentBase(SQLModel):
 
 class Document(DocumentBase, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    folder: UUID = Field(index=True, foreign_key="folder.id")
+    folder_id: UUID = Field(index=True, foreign_key="folder.id")
+    collection_id: UUID = Field(index=True, foreign_key="collection.id")
     submission_date: datetime = Field(default_factory=datetime.now)
 
 
 class DocumentIntake(DocumentBase):
     content: bytes
-    history: list[Event] = []
+    parent_folder: FolderIntake
+
+    def __str__(self) -> str:
+        return f"{self.name}"
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
 
 class CollectionBase(SQLModel):
     id: UUID
     name: str
     owner: UUID
-    submission_date: datetime
-    last_update: datetime | None
+    submission_date: datetime = datetime.now()
+    last_update: datetime | None = None
     share_state: SharedState = SharedState.private
-    access_from_date: datetime | None
-
-    def __init__(self, name: str, owner: UUID, files: List[Document]):
-        super().__init__(name=name, owner=owner)
-        self.structure = Folder(name)
-        for file in files:
-            self.structure.children.append(file)
-
-    @property
-    def last_update(self):
-        return self.structure.last_update
+    access_from_date: datetime | None = None
 
     @property
     def size(self):

@@ -51,6 +51,9 @@
 				}
 			],
 			"request": {
+				"auth": {
+					"type": "noauth"
+				},
 				"method": "POST",
 				"header": [],
 				"body": {
@@ -128,51 +131,6 @@
 				"disableBodyPruning": true
 			},
 			"request": {
-				"auth": {
-					"type": "jwt",
-					"jwt": [
-						{
-							"key": "secret",
-							"value": "78a6d789443db45e595153ec30f5708e47e97313d1273b1414beafc60d6ff05b",
-							"type": "string"
-						},
-						{
-							"key": "payload",
-							"value": "{\"sub\": \"15491bd7bc724418b2403ae037dd8efb\"\n}",
-							"type": "string"
-						},
-						{
-							"key": "algorithm",
-							"value": "HS256",
-							"type": "string"
-						},
-						{
-							"key": "isSecretBase64Encoded",
-							"value": false,
-							"type": "boolean"
-						},
-						{
-							"key": "addTokenTo",
-							"value": "header",
-							"type": "string"
-						},
-						{
-							"key": "headerPrefix",
-							"value": "Bearer",
-							"type": "string"
-						},
-						{
-							"key": "queryParamKey",
-							"value": "token",
-							"type": "string"
-						},
-						{
-							"key": "header",
-							"value": "{}",
-							"type": "string"
-						}
-					]
-				},
 				"method": "GET",
 				"header": [],
 				"body": {
@@ -269,6 +227,141 @@
 				}
 			},
 			"response": []
+		},
+		{
+			"name": "Create Single File Collection",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"",
+							"pm.test(\"Response has the correct Content-Type header\", function () {",
+							"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.equal(\"application/json\");",
+							"});",
+							"",
+							"",
+							"pm.test(\"Response body is an array\", function () {",
+							"    const responseData = pm.response.json();",
+							"    ",
+							"    pm.expect(responseData).to.be.an('array');",
+							"});",
+							"",
+							"",
+							"pm.test(\"Response body is empty\", function () {",
+							"    pm.expect(pm.response.text()).to.have.lengthOf(0);",
+							"});",
+							"",
+							"",
+							"pm.test(\"Response time is less than 500ms\", function () {",
+							"  pm.expect(pm.response.responseTime).to.be.below(500);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": "postman-cloud:///1eeeb9e0-2a48-42c0-9ef2-0a5cc4bb52fc"
+						}
+					]
+				},
+				"url": {
+					"raw": "127.0.0.1:8000/collections",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"collections"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Complex Collection",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"",
+							"pm.test(\"Response has the correct Content-Type header\", function () {",
+							"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.equal(\"application/json\");",
+							"});",
+							"",
+							"",
+							"pm.test(\"Response body is an array\", function () {",
+							"    const responseData = pm.response.json();",
+							"    ",
+							"    pm.expect(responseData).to.be.an('array');",
+							"});",
+							"",
+							"",
+							"pm.test(\"Response body is empty\", function () {",
+							"    pm.expect(pm.response.text()).to.have.lengthOf(0);",
+							"});",
+							"",
+							"",
+							"pm.test(\"Response time is less than 500ms\", function () {",
+							"  pm.expect(pm.response.responseTime).to.be.below(500);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"disabledSystemHeaders": {}
+			},
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": "/home/mycsina/Projects/Projects/Uni/DiSA/DiSA-backend/test/data/c2023-adv-06.tar.gz"
+						}
+					]
+				},
+				"url": {
+					"raw": "127.0.0.1:8000/collections",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"collections"
+					]
+				}
+			},
+			"response": []
 		}
 	],
 	"auth": {
@@ -276,7 +369,7 @@
 		"jwt": [
 			{
 				"key": "payload",
-				"value": "{\"sub\": \"3ec380655bf34cb6bb9df555fd059cfe\"\n}",
+				"value": "{\"sub\": \"d91f66b97a5d4983958c0b30557ab4b8\"\n}",
 				"type": "string"
 			},
 			{

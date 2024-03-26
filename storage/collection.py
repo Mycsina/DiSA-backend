@@ -1,5 +1,6 @@
-import io
-import zipfile
+import tarfile
+import os
+from typing import Sequence
 from uuid import UUID
 
 from sqlmodel import Session, select
@@ -7,9 +8,11 @@ from sqlmodel import Session, select
 from models.collection import Collection, Document
 from models.folder import Folder
 from models.user import User
+from storage.main import TEMP_FOLDER, add_and_refresh
+from storage.folder import walk_folder, create_folder
 
 
-def get_collections(db: Session) -> list[Collection]:
+def get_collections(db: Session) -> Sequence[Collection]:
     statement = select(Collection)
     results = db.exec(statement)
     return results.all()
@@ -28,27 +31,29 @@ def get_document_by_id(db: Session, doc_id: UUID) -> Document | None:
 
 
 def create_collection(db: Session, name: str, data: bytes, user: User) -> Collection:
-    root_folder = Folder(name="root", parent_id=None)
-    db.add(root_folder)
-    db.commit()
-    docs = []
-    if name.split(".")[-1].lower() in ["zip", "tar", "gz", "rar", "7z"]:
+    if user.id is None:
+        raise ValueError("User must have an ID to create a collection. This should never happen.")
+    db_folder = Folder(name="root", owner_id=user.id)
+    db_folder = add_and_refresh(db, db_folder)
+    collection = Collection(name=name, owner=user.id, root=db_folder.id)
+    collection = add_and_refresh(db, collection)
+
+    if name.split(".")[-2].lower() == "tar":
+        print(name.split(".")[-1].lower())
         # We're dealing with a zipped folder
-        with zipfile.ZipFile(io.BytesIO(data)) as zip:
-            for file_name in zip.namelist():
-                with zip.open(file_name) as file:
-                    doc = Document(name=file_name, content=file.read(), size=len(file.read()), folder=root_folder.id)
-                    docs.append(doc)
+        with open(f"{TEMP_FOLDER}/{name}", "wb") as f:
+            f.write(data)
+        with tarfile.open(f"{TEMP_FOLDER}/{name}") as tar:
+            tar.extractall(f"{TEMP_FOLDER}")
+        os.remove(f"{TEMP_FOLDER}/{name}")
+        # Create the folder structure, walking through the extracted files
+        root = walk_folder(f"{TEMP_FOLDER}/{name.split('.')[0]}", user)
+        create_folder(db, root, collection.id)
     else:
         # We're dealing with a single document
-        doc = Document(name=name, content=data, size=len(data), folder=root_folder.id)
-        docs.append(doc)
+        doc = Document(name=name, size=len(data), folder_id=db_folder.id, collection_id=collection.id)
+        doc = add_and_refresh(db, doc)
 
-    for d in docs:
-        db.add(d)
-    collection = Collection(name=name, owner_id=user.id, root=root_folder.id)
-    db.add(collection)
-    db.commit()
     return collection
 
 
@@ -78,13 +83,13 @@ def delete_document(db: Session, col_id: UUID, doc_id: UUID):
     if document.folder.collection_id != col_id:
         raise ValueError("Document not in the specified collection")
 
-    db.query(Document).filter(Document.id == doc_id).delete()
+    # db.query(Document).filter(Document.id == doc_id).delete()
     db.commit()
     return True
 
 
 def delete_collection(db: Session, col_id: UUID):
-    collection = db.get_collection_by_id(col_id)
+    collection = get_collection_by_id(db, col_id)
     if collection is None:
         raise ValueError("Collection not found")
     db.delete(collection)

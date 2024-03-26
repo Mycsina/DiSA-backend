@@ -1,11 +1,10 @@
-from datetime import datetime
-from typing import TYPE_CHECKING, Any, Generator, List, Tuple, Union, Optional
+from typing import TYPE_CHECKING, List, Union, Optional
 from uuid import UUID, uuid4
 
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import Field, SQLModel
 
 if TYPE_CHECKING:
-    from models.document import Document
+    from models.collection import Document
 
 from models.user import User
 
@@ -16,32 +15,14 @@ class FolderBase(SQLModel):
     parent: Optional["FolderBase"]
 
 
-class FolderIntake(SQLModel):
-    children: List[Union["Document", "FolderIntake"]]
-
-    @property
-    def last_update(self):
-        latest_update = datetime.min
-        for child in self.children:
-            if child.last_updated > latest_update:
-                latest_update = child.last_updated
-        return latest_update
-
-    @property
-    def size(self):
-        size = 0
-        for child in self.children:
-            size += child.size
-        return size
-
-    def __iter__(self) -> Generator[Tuple[str, Any], None, None]:
-        for item in self.children:
-            if item is Document:
-                yield item
+class FolderIntake(FolderBase):
+    children: List[Union["Document", "FolderIntake"]] = []
 
 
 class Folder(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
+    name: str
+    owner_id: UUID = Field(foreign_key="user.id")
     parent_id: UUID | None = Field(default=None, foreign_key="folder.id")
 
     # parent: Optional["Folder"] = Relationship(

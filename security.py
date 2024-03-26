@@ -10,13 +10,15 @@ from pydantic import BaseModel
 from sqlmodel import Session
 
 from exceptions import BearerException
-from models.user import UserBase as User
+from models.user import User
 from storage.main import acquire_db
 from storage.user import get_user_by_id, get_user_by_username
 
 load_dotenv()
 
 SECRET_KEY = getenv("SECRET_KEY")
+if SECRET_KEY is None:
+    raise ValueError("SECRET_KEY not set")
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -43,6 +45,8 @@ def password_verify(password: str, hashed_password: str):
 def verify_user(db: Session, username: str, password: str) -> User | None:
     user = get_user_by_username(db, username)
     if not user:
+        return
+    if not user.password:
         return
     if not password_verify(password, user.password):
         return
@@ -72,7 +76,7 @@ def get_current_user(session: Session = Depends(acquire_db), token: str = Depend
     with session:
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            user_id: str = payload.get("sub")
+            user_id = payload.get("sub")
             if user_id is None:
                 raise credentials_exception
         except JWTError:
