@@ -6,6 +6,7 @@ from sqlmodel import Session
 from models.collection import Document, DocumentIntake
 from models.folder import Folder, FolderIntake
 from models.user import User
+from models.event import Event, EventTypes
 from storage.main import add_and_refresh
 
 from uuid import UUID
@@ -62,6 +63,9 @@ def create_folder(db: Session, root: FolderIntake, collection_id: UUID):
                 submission_date=child.submission_date,
                 folder_id=root_id,
                 collection_id=collection_id,
+            )
+            db_child.events.append(
+                Event(type=EventTypes.Create, user_id=child.parent_folder.owner.id, document_id=db_child.id)
             )
             db.add(db_child)
     db.commit()

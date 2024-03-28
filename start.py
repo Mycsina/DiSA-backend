@@ -36,6 +36,8 @@ def on_startup():
         os.makedirs(TEMP_FOLDER)
 
 
+# TODO - this is deprecated, implement new way of cleaning up at shutdown
+# https://fastapi.tiangolo.com/advanced/events/
 @app.on_event("shutdown")
 def on_shutdown():
     if os.path.exists(TEMP_FOLDER):
@@ -48,7 +50,6 @@ async def root():
     return {"message": "Welcome to DiSA"}
 
 
-# TODO - test this
 @app.post("/collections/")
 async def create_collection(
     user: Annotated[User, Depends(get_current_user)],
@@ -87,7 +88,7 @@ async def update_document(
             raise HTTPException(status_code=404, detail="Collection not found")
         if doc.owner != user.id:
             raise HTTPException(status_code=403, detail="You are not the owner of this document")
-        collections.update_collection(session, doc_uuid, file)
+        collections.update_document(session, doc_uuid, collection_uuid, await file.read())
 
 
 # TODO - test this

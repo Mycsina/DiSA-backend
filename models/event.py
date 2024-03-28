@@ -31,6 +31,7 @@ class Event(EventBase, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(foreign_key="user.id")
     document_id: UUID = Field(foreign_key="document.id")
+    type: EventTypes = Field(default=EventTypes.Access)
 
     user: User = Relationship(back_populates="events")
     document: "Document" = Relationship(back_populates="events")

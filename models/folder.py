@@ -32,4 +32,4 @@ class Folder(SQLModel, table=True):
 
     documents: list["Document"] = Relationship(back_populates="folder")
     owner: User = Relationship(back_populates="folders")
-    collection: "Collection" = Relationship(back_populates="folders")
+    collection: "Collection" = Relationship(back_populates="root_folder")
