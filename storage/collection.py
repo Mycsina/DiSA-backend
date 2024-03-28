@@ -35,7 +35,7 @@ def create_collection(db: Session, name: str, data: bytes, user: User, share_sta
         raise ValueError("User must have an ID to create a collection. This should never happen.")
     db_folder = Folder(name="root", owner_id=user.id)
     db_folder = add_and_refresh(db, db_folder)
-    collection = Collection(name=name, owner=user.id, root=db_folder.id)
+    collection = Collection(name=name, owner=user.id, root=db_folder.id, share_state=share_state)
     collection = add_and_refresh(db, collection)
 
     if name.split(".")[-2].lower() == "tar":
@@ -44,6 +44,7 @@ def create_collection(db: Session, name: str, data: bytes, user: User, share_sta
         with open(f"{TEMP_FOLDER}/{name}", "wb") as f:
             f.write(data)
         with tarfile.open(f"{TEMP_FOLDER}/{name}") as tar:
+            # TODO - replace deprecated method
             tar.extractall(f"{TEMP_FOLDER}")
         os.remove(f"{TEMP_FOLDER}/{name}")
         # Create the folder structure, walking through the extracted files

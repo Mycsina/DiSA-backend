@@ -1,10 +1,10 @@
-from typing import TYPE_CHECKING, List, Union, Optional
+from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID, uuid4
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
-    from models.collection import Document
+    from models.collection import Collection, Document
 
 from models.user import User
 
@@ -16,7 +16,7 @@ class FolderBase(SQLModel):
 
 
 class FolderIntake(FolderBase):
-    children: List[Union["Document", "FolderIntake"]] = []
+    children: list[Union["Document", "FolderIntake"]] = []
 
 
 class Folder(SQLModel, table=True):
@@ -25,10 +25,11 @@ class Folder(SQLModel, table=True):
     owner_id: UUID = Field(foreign_key="user.id")
     parent_id: UUID | None = Field(default=None, foreign_key="folder.id")
 
-    # parent: Optional["Folder"] = Relationship(
-    #    back_populates="children", sa_relationship_kwargs=dict(remote_side="Folder.id")
-    # )
-    # children: list["Folder"] = Relationship(back_populates="parent")
+    parent: Optional["Folder"] = Relationship(
+        back_populates="sub_folders", sa_relationship_kwargs=dict(remote_side="Folder.id")
+    )
+    sub_folders: list["Folder"] = Relationship(back_populates="parent")
 
-    # TODO - make documents aware of their parent folder in ORM
-    # TODO - make the relationships bidirectional so we get nice sweet ORM magic
+    documents: list["Document"] = Relationship(back_populates="folder")
+    owner: User = Relationship(back_populates="folders")
+    collection: "Collection" = Relationship(back_populates="folders")
