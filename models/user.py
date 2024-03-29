@@ -5,12 +5,18 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from models.event import Event
-    from models.folder import Folder
+    from models.collection import Collection
 
 
 class UserRole(str, Enum):
     ADMIN = "admin"
     USER = "user"
+
+
+class UserSafe(SQLModel):
+    name: str | None = None
+    email: str
+    role: UserRole | None = UserRole.USER
 
 
 class UserBase(SQLModel):
@@ -35,9 +41,13 @@ class UserCMDCreate(UserBase):
 
 
 class User(UserBase, table=True):
-    id: UUID | None = Field(default_factory=uuid4, primary_key=True)
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
     email: str = Field(unique=True)
     role: UserRole = Field(default=UserRole.USER)
 
     events: list["Event"] = Relationship(back_populates="user")
-    folders: list["Folder"] = Relationship(back_populates="owner")
+    collections: list["Collection"] = Relationship(back_populates="owner")
+
+
+def strip_sensitive(user: User) -> UserSafe:
+    return UserSafe(email=user.email, role=user.role, name=user.name)

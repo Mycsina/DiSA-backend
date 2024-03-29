@@ -14,7 +14,6 @@ from models.user import User
 class EventTypes(str, Enum):
     Access = "access"
     Create = "create"
-    Update = "update"
     Delete = "delete"
 
 

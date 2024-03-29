@@ -12,6 +12,7 @@ import storage.collection as collections
 import storage.user as users
 from exceptions import BearerException, CMDFailure
 from models.collection import Collection, SharedState
+from models.folder import FolderIntake
 from models.user import User
 from models.user import UserCMDCreate, UserCreate
 from security import (
@@ -74,43 +75,73 @@ async def get_all_collections(
         return collections.get_collections(db)
 
 
+@app.get("/collections/{col_uuid}")
+async def get_collection(
+    user: Annotated[User, Depends(get_current_user)],
+    col_uuid: UUID,
+) -> Collection:
+    with Session(engine) as session:
+        collection = collections.get_collection_by_id(session, col_uuid)
+        if collection is None:
+            raise HTTPException(status_code=404, detail="Collection not found")
+        return collection
+
+
+@app.get("/collections/{col_uuid}/hierarchy")
+async def get_collection_hierarchy(
+    user: Annotated[User, Depends(get_current_user)],
+    col_uuid: UUID,
+) -> FolderIntake:
+    with Session(engine) as session:
+        folder = collections.get_collection_hierarchy(session, col_uuid)
+        if folder is None:
+            raise HTTPException(status_code=404, detail="Collection not found")
+        return folder
+
+
 # TODO - test this
-@app.put("/documents/{doc_uuid}")
+@app.put("/collections/{col_uuid}/{doc_uuid}")
 async def update_document(
     user: Annotated[User, Depends(get_current_user)],
-    collection_uuid: UUID,
+    col_uuid: UUID,
     doc_uuid: UUID,
     file: UploadFile,
 ):
     with Session(engine) as session:
-        doc = collections.get_collection_by_id(session, collection_uuid)
-        if doc is None:
+        col = collections.get_collection_by_id(session, col_uuid)
+        if col is None:
             raise HTTPException(status_code=404, detail="Collection not found")
-        if doc.owner != user.id:
+        if col.owner != user:
             raise HTTPException(status_code=403, detail="You are not the owner of this document")
-        collections.update_document(session, doc_uuid, collection_uuid, await file.read())
+        doc = collections.get_document_by_id(session, doc_uuid)
+        if doc is None:
+            raise HTTPException(status_code=404, detail="Document not found")
+        if doc not in col.documents:
+            raise HTTPException(status_code=404, detail="Document not in the specified collection")
+        data = await file.read()
+        collections.update_document(session, col_uuid, doc_uuid, data)
 
 
 # TODO - test this
-@app.delete("/collections/{collection_uuid}")
+@app.delete("/collections/{col_uuid}")
 async def delete_collection(
     user: Annotated[User, Depends(get_current_user)],
-    collection_uuid: UUID,
+    col_uuid: UUID,
 ):
     with Session(engine) as session:
-        doc = collections.get_collection_by_id(session, collection_uuid)
+        doc = collections.get_collection_by_id(session, col_uuid)
         if doc is None:
             raise HTTPException(status_code=404, detail="Collection not found")
         if doc.owner != user.id:
             raise HTTPException(status_code=403, detail="You are not the owner of this Collection")
-        collections.delete_collection(session, collection_uuid)
+        collections.delete_collection(session, col_uuid)
 
 
 # TODO - test this
 @app.delete("/documents/{doc_uuid}")
 async def delete_document(
     user: Annotated[User, Depends(get_current_user)],
-    collection_uuid: UUID,
+    col_uuid: UUID,
     doc_uuid: UUID,
 ):
     with Session(engine) as session:
@@ -119,7 +150,7 @@ async def delete_document(
             raise HTTPException(status_code=404, detail="Collection not found")
         if doc.owner != user.id:
             raise HTTPException(status_code=403, detail="You are not the owner of this Collection")
-        collections.delete_document(session, collection_uuid, doc_uuid)
+        collections.delete_document(session, col_uuid, doc_uuid)
 
 
 # TODO - test this
@@ -127,7 +158,7 @@ async def delete_document(
 @app.get("/documents/search")
 async def search_documents(
     user: Annotated[User, Depends(get_current_user)],
-    collection_uuid: UUID,
+    col_uuid: UUID,
     query: str,
 ):
     with Session(engine) as session:
@@ -154,7 +185,7 @@ async def filter_documents(
 @app.get("/documents/{doc_uuid}/history")
 async def get_document_history(
     user: Annotated[User, Depends(get_current_user)],
-    collection_uuid: UUID,
+    col_uuid: UUID,
     doc_uuid: UUID,
 ):
     with Session(engine) as session:

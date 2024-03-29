@@ -19,11 +19,3 @@ def create_db_and_tables():
 
 def acquire_db():
     return Session(engine)
-
-
-def add_and_refresh(db: Session, obj: T) -> T:
-    """Add an object to the database and refresh it to get the generated defaults."""
-    db.add(obj)
-    db.commit()
-    db.refresh(obj)
-    return obj

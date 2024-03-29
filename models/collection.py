@@ -7,6 +7,8 @@ from sqlmodel import Field, Relationship, SQLModel
 
 from models.event import Event
 from models.folder import Folder, FolderIntake
+from models.user import User
+from models.update import Update
 
 
 class SharedState(str, Enum):
@@ -32,23 +34,18 @@ class Document(DocumentBase, table=True):
 
     events: list["Event"] = Relationship(back_populates="document")
     folder: Folder = Relationship(back_populates="documents")
+    update: "Update | None" = Relationship(back_populates="updated")
 
 
 class DocumentIntake(DocumentBase):
     content: bytes
     parent_folder: FolderIntake
 
-    def __str__(self) -> str:
-        return f"{self.name}"
-
-    def __repr__(self) -> str:
-        return self.__str__()
-
 
 class CollectionBase(SQLModel):
     id: UUID
     name: str
-    owner: UUID
+    owner_id: UUID
     submission_date: datetime = datetime.now()
     last_update: datetime | None = None
     share_state: SharedState = SharedState.private
@@ -70,6 +67,8 @@ class CollectionIntake(CollectionBase):
 
 class Collection(CollectionBase, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    root: UUID = Field(foreign_key="folder.id")
+    owner_id: UUID | None = Field(default=None, foreign_key="user.id", nullable=False)
 
-    root_folder: Folder = Relationship(back_populates="collection")
+    folder: Folder = Relationship(back_populates="collection")
+    owner: "User" = Relationship(back_populates="collections")
+    documents: list["Document"] = Relationship(back_populates="collection")
