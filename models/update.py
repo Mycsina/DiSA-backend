@@ -16,6 +16,8 @@ class Update(SQLModel, table=True):
     previous_id: UUID = Field(foreign_key="document.id")
     updated_id: UUID = Field(foreign_key="document.id")
 
-    user: User = Relationship(back_populates="events")
-    previous: "Document" = Relationship(back_populates="previous")
-    updated: "Document" = Relationship(back_populates="updated")
+    user: User = Relationship(back_populates="updates")
+    old: "Document" = Relationship(
+        back_populates="previous", sa_relationship_kwargs={"foreign_keys": "Update.previous_id"}
+    )
+    new: "Document" = Relationship(back_populates="next", sa_relationship_kwargs={"foreign_keys": "Update.updated_id"})

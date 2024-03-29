@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Any, Generator, List, Tuple
+from typing import Any, Generator, List, Optional, Tuple
 from uuid import UUID, uuid4
 
 from sqlmodel import Field, Relationship, SQLModel
@@ -34,7 +34,13 @@ class Document(DocumentBase, table=True):
 
     events: list["Event"] = Relationship(back_populates="document")
     folder: Folder = Relationship(back_populates="documents")
-    update: "Update | None" = Relationship(back_populates="updated")
+    collection: "Collection" = Relationship(back_populates="documents")
+    previous: Optional["Update"] = Relationship(
+        back_populates="old", sa_relationship_kwargs={"foreign_keys": "Update.previous_id"}
+    )
+    next: Optional["Update"] = Relationship(
+        back_populates="new", sa_relationship_kwargs={"foreign_keys": "Update.updated_id"}
+    )
 
 
 class DocumentIntake(DocumentBase):

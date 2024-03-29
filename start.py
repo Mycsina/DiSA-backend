@@ -119,7 +119,10 @@ async def update_document(
         if doc not in col.documents:
             raise HTTPException(status_code=404, detail="Document not in the specified collection")
         data = await file.read()
-        collections.update_document(session, col_uuid, doc_uuid, data)
+        collections.update_document(session, user, col_uuid, doc_uuid, data)
+        if doc.next is None:
+            raise HTTPException(status_code=500, detail="Document update failed")
+        return {"message": "Document updated successfully", "update_uuid": doc.next.id}
 
 
 # TODO - test this
