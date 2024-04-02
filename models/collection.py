@@ -21,16 +21,19 @@ class SharedState(str, Enum):
 class DocumentBase(SQLModel):
     name: str
     size: int
-    submission_date: datetime
+    submission_date: datetime = datetime.max
     last_updated: datetime | None = None
     access_from_date: datetime | None = None
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.submission_date = datetime.now()
 
 
 class Document(DocumentBase, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     folder_id: UUID = Field(index=True, foreign_key="folder.id")
     collection_id: UUID = Field(index=True, foreign_key="collection.id")
-    submission_date: datetime = Field(default_factory=datetime.now)
 
     events: list["Event"] = Relationship(back_populates="document")
     folder: Folder = Relationship(back_populates="documents")
@@ -52,10 +55,14 @@ class CollectionBase(SQLModel):
     id: UUID
     name: str
     owner_id: UUID
-    submission_date: datetime = datetime.now()
+    submission_date: datetime = datetime.max
     last_update: datetime | None = None
     share_state: SharedState = SharedState.private
     access_from_date: datetime | None = None
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.submission_date = datetime.now()
 
     @property
     def size(self):

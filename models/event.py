@@ -21,6 +21,10 @@ class EventBase(SQLModel):
     timestamp: datetime = datetime.now()
     type: EventTypes
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.timestamp = datetime.now()
+
 
 class EventIntake(EventBase):
     user: User
