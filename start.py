@@ -23,7 +23,7 @@ from security import (
     verify_session,
     verify_user,
 )
-from storage.main import engine, TEMP_FOLDER
+from storage.main import engine, TEMP_FOLDER, TEST, DB_URL
 
 app = FastAPI()
 
@@ -32,6 +32,9 @@ app = FastAPI()
 # https://fastapi.tiangolo.com/advanced/events/
 @app.on_event("startup")
 def on_startup():
+    if TEST:
+        db_path = DB_URL.split("///")[1]
+        shutil.copy2(db_path, db_path + ".bak")
     SQLModel.metadata.create_all(engine)
     if not os.path.exists(TEMP_FOLDER):
         os.makedirs(TEMP_FOLDER)
@@ -41,6 +44,10 @@ def on_startup():
 # https://fastapi.tiangolo.com/advanced/events/
 @app.on_event("shutdown")
 def on_shutdown():
+    if TEST:
+        db_path = DB_URL.split("///")[1]
+        shutil.copy2(db_path + ".bak", db_path)
+        os.remove(db_path + ".bak")
     if os.path.exists(TEMP_FOLDER):
         # Remove the temporary folder and its contents
         shutil.rmtree(TEMP_FOLDER)
@@ -75,7 +82,7 @@ async def get_all_collections(
         return collections.get_collections(db)
 
 
-@app.get("/collections/{col_uuid}")
+@app.get("/collections/")
 async def get_collection(
     user: Annotated[User, Depends(get_current_user)],
     col_uuid: UUID,
@@ -87,7 +94,7 @@ async def get_collection(
         return collection
 
 
-@app.get("/collections/{col_uuid}/hierarchy")
+@app.get("/collections/hierarchy")
 async def get_collection_hierarchy(
     user: Annotated[User, Depends(get_current_user)],
     col_uuid: UUID,
@@ -100,7 +107,7 @@ async def get_collection_hierarchy(
 
 
 # TODO - test this
-@app.put("/collections/{col_uuid}/{doc_uuid}")
+@app.put("/collections/")
 async def update_document(
     user: Annotated[User, Depends(get_current_user)],
     col_uuid: UUID,
@@ -126,7 +133,7 @@ async def update_document(
 
 
 # TODO - test this
-@app.delete("/collections/{col_uuid}")
+@app.delete("/collections/")
 async def delete_collection(
     user: Annotated[User, Depends(get_current_user)],
     col_uuid: UUID,
@@ -141,7 +148,7 @@ async def delete_collection(
 
 
 # TODO - test this
-@app.delete("/documents/{doc_uuid}")
+@app.delete("/documents/")
 async def delete_document(
     user: Annotated[User, Depends(get_current_user)],
     col_uuid: UUID,
