@@ -91,7 +91,7 @@ def update_document(db: Session, user: User, col_id: UUID, doc_id: UUID, file: b
 def delete_document(db: Session, doc_id: UUID):
     document = get_document_by_id(db, doc_id)
     if document is None:
-        raise ValueError("Document not found")
+        raise ValueError("Document not found. This should never happen.")
     document.events.append(Event(type=EventTypes.Delete, user_id=document.folder.owner_id, document_id=document.id))
     db.commit()
     return True

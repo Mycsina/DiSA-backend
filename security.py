@@ -11,7 +11,7 @@ from sqlmodel import Session
 
 from exceptions import BearerException
 from models.user import User
-from storage.main import acquire_db
+from storage.main import engine
 from storage.user import get_user_by_id, get_user_by_username
 
 load_dotenv()
@@ -70,18 +70,19 @@ def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes
     return encoded_jwt
 
 
-def get_current_user(session: Session = Depends(acquire_db), token: str = Depends(oauth2_scheme)) -> User:
-    credentials_exception = BearerException
-    credentials_exception.detail = "Could not validate token"
-    with session:
-        try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            user_id = payload.get("sub")
-            if user_id is None:
+def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
+    with Session(engine) as session:
+        credentials_exception = BearerException
+        credentials_exception.detail = "Could not validate token"
+        with session:
+            try:
+                payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+                user_id = payload.get("sub")
+                if user_id is None:
+                    raise credentials_exception
+            except JWTError:
                 raise credentials_exception
-        except JWTError:
-            raise credentials_exception
-        user = get_user_by_id(session, user_id)
-        if user is None:
-            raise credentials_exception
-        return user
+            user = get_user_by_id(session, user_id)
+            if user is None:
+                raise credentials_exception
+            return user
