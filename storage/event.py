@@ -15,5 +15,4 @@ def register_event(db: Session, col_or_doc: Collection | Document, user: User, e
     else:
         event = DocumentEvent(user_id=user.id, type=event_type, document_id=col_or_doc.id)
     db.add(event)
-    db.commit()
     return True

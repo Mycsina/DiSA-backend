@@ -3,22 +3,30 @@ import os
 from sqlmodel import Session
 
 from models.collection import Document, DocumentIntake
-from models.event import DocumentEvent, EventTypes
+from models.event import EventTypes
 from models.folder import Folder, FolderIntake
 from models.user import User
 
 from storage.event import register_event
 
 
-def recreate_structure(db: Session, root: Folder) -> FolderIntake:
+def recreate_structure(db: Session, root: Folder, user: User) -> FolderIntake:
     """Recreate the FolderIntake structure from the structure in the database."""
     root_folder = FolderIntake(name=root.name)
     for child in root.sub_folders:
-        root_folder.children.append(recreate_structure(db, child))
+        root_folder.children.append(recreate_structure(db, child, user))
     for doc in root.documents:
-        while doc.next is not None:
+        deleted = False
+        if doc.is_deleted():
+            deleted = True
+        # Travel until the last update, if any is deleted, the document is considered deleted
+        while doc.next is not None and not deleted:
+            if doc.is_deleted():
+                deleted = True
             doc = doc.next.new
-        root_folder.children.append(doc)
+        register_event(db, doc, user, EventTypes.Access)
+        if not deleted:
+            root_folder.children.append(doc)
     return root_folder
 
 
@@ -52,7 +60,7 @@ def walk_folder(root: str, user: User) -> FolderIntake:
 
 
 def create_folder(db: Session, root: FolderIntake, db_root: Folder) -> Folder:
-    """Creates Folder and Document structures in the database from the given root folder."""
+    """Creates Folder and Document structures in the database from the given root FolderIntake object."""
     print(db_root.collection)
     root_id = db_root.id
     if root_id is None:
@@ -75,7 +83,6 @@ def create_folder(db: Session, root: FolderIntake, db_root: Folder) -> Folder:
                 folder_id=root_id,
                 collection_id=db_root.collection.id,
             )
-            db_child.events.append(DocumentEvent(type=EventTypes.Create, user_id=db_root.collection.owner.id))
             register_event(db, db_child, db_root.collection.owner, EventTypes.Create)
             parent.documents.append(db_child)
             db.add(db_child)

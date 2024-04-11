@@ -15,28 +15,37 @@ from storage.folder import create_folder, recreate_structure, walk_folder
 from storage.main import TEMP_FOLDER
 
 
-def get_collections(db: Session) -> Sequence[Collection]:
+def get_collections(db: Session, user: User) -> Sequence[Collection]:
     statement = select(Collection)
     results = db.exec(statement)
-    return results.all()
+    collections = results.all()
+    collections = [col for col in collections if not col.is_deleted()]
+    for col in collections:
+        register_event(db, col, user, EventTypes.Access)
+    return collections
 
 
-def get_collection_by_id(db: Session, col_id: UUID) -> Collection | None:
+def get_collection_by_id(db: Session, col_id: UUID, user: User) -> Collection | None:
     statement = select(Collection).where(Collection.id == col_id)
     results = db.exec(statement)
-    return results.first()
+    collection = results.first()
+    if collection is not None:
+        if collection.is_deleted():
+            return None
+        register_event(db, collection, user, EventTypes.Access)
+    return collection
 
 
 def get_document_by_id(db: Session, doc_id: UUID) -> Document | None:
     statement = select(Document).where(Document.id == doc_id)
     results = db.exec(statement)
-    return results.first()
+    document = results.first()
+    if document is not None:
+        register_event(db, document, document.collection.owner, EventTypes.Access)
+    return document
 
 
 def create_collection(db: Session, name: str, data: bytes, user: User, share_state: SharedState) -> Collection:
-    if user.id is None:
-        raise ValueError("User must have an ID to create a collection. This should never happen.")
-
     collection = Collection(name=name, share_state=share_state)
     db_folder = Folder(name=name)
     register_event(db, collection, user, EventTypes.Create)
@@ -66,27 +75,24 @@ def create_collection(db: Session, name: str, data: bytes, user: User, share_sta
     return collection
 
 
-def get_collection_hierarchy(db: Session, col: Collection) -> FolderIntake | None:
-    structure = recreate_structure(db, col.folder)
+def get_collection_hierarchy(db: Session, col: Collection, user: User) -> FolderIntake | None:
+    structure = recreate_structure(db, col.folder, user)
     return structure
 
 
-def update_document(db: Session, user: User, col_id: UUID, doc_id: UUID, file: bytes):
-    document = get_document_by_id(db, doc_id)
-    if document is None:
-        raise ValueError("Document not found. This should never happen.")
+def update_document(db: Session, user: User, col: Collection, doc: Document, file: bytes):
     new_document = Document(
-        name=document.name,
+        name=doc.name,
         size=len(file),
-        folder_id=document.folder_id,
-        collection_id=col_id,
-        access_from_date=document.access_from_date,
+        folder_id=doc.folder_id,
+        collection_id=col.id,
+        access_from_date=doc.access_from_date,
     )
-    update = Update(user_id=user.id, previous_id=document.id, updated_id=new_document.id)
+    update = Update(user_id=user.id, previous_id=doc.id, updated_id=new_document.id)
     db.add(update)
     db.add(new_document)
     db.commit()
-    return document
+    return doc
 
 
 # TODO - verify that this is correct

@@ -36,7 +36,7 @@ class DocumentEvent(EventBase, table=True):
     document_id: UUID = Field(foreign_key="document.id")
     type: EventTypes = Field(default=EventTypes.Access)
 
-    user: User = Relationship(back_populates="events")
+    user: User = Relationship(back_populates="doc_events")
     document: "Document" = Relationship(back_populates="events")
 
 
@@ -46,5 +46,5 @@ class CollectionEvent(EventBase, table=True):
     collection_id: UUID = Field(foreign_key="collection.id")
     type: EventTypes = Field(default=EventTypes.Access)
 
-    user: User = Relationship(back_populates="events")
+    user: User = Relationship(back_populates="col_events")
     collection: "Collection" = Relationship(back_populates="events")
