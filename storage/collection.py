@@ -65,11 +65,8 @@ def create_collection(db: Session, name: str, data: bytes, user: User, share_sta
     return collection
 
 
-def get_collection_hierarchy(db: Session, col_id: UUID) -> FolderIntake | None:
-    collection = get_collection_by_id(db, col_id)
-    if collection is None:
-        return None
-    structure = recreate_structure(db, collection.folder)
+def get_collection_hierarchy(db: Session, col: Collection) -> FolderIntake | None:
+    structure = recreate_structure(db, col.folder)
     return structure
 
 
@@ -92,11 +89,8 @@ def update_document(db: Session, user: User, col_id: UUID, doc_id: UUID, file: b
 
 
 # TODO - verify that this is correct
-def delete_document(db: Session, doc_id: UUID):
-    document = get_document_by_id(db, doc_id)
-    if document is None:
-        raise ValueError("Document not found. This should never happen.")
-    document.events.append(Event(type=EventTypes.Delete, user_id=document.folder.owner_id, document_id=document.id))
+def delete_document(db: Session, doc: Document):
+    doc.events.append(Event(type=EventTypes.Delete, user_id=doc.folder.owner_id, document_id=doc.id))
     db.commit()
     return True
 
@@ -109,3 +103,10 @@ def delete_collection(db: Session, col_id: UUID):
     db.delete(collection)
     db.commit()
     return True
+
+
+def search_documents(db: Session, col: Collection, name: str) -> list[Document] | None:
+    docs = [doc for doc in col.documents if doc.name == name and doc.next is None]
+    if len(docs) == 0:
+        return None
+    return docs

@@ -99,9 +99,12 @@ async def get_collection_hierarchy(
     col_uuid: UUID,
 ) -> FolderIntake:
     with Session(engine) as session:
-        folder = collections.get_collection_hierarchy(session, col_uuid)
-        if folder is None:
+        col = collections.get_collection_by_id(session, col_uuid)
+        if col is None:
             raise HTTPException(status_code=404, detail="Collection not found")
+        folder = collections.get_collection_hierarchy(session, col)
+        if folder is None:
+            raise HTTPException(status_code=404, detail="Collection hierarchy is corrupted")
         return folder
 
 
@@ -114,15 +117,17 @@ async def update_document(
 ):
     with Session(engine) as session:
         col = collections.get_collection_by_id(session, col_uuid)
+        doc = collections.get_document_by_id(session, doc_uuid)
+
         if col is None:
             raise HTTPException(status_code=404, detail="Collection not found")
         if col.owner != user:
             raise HTTPException(status_code=403, detail="You are not the owner of this document")
-        doc = collections.get_document_by_id(session, doc_uuid)
         if doc is None:
             raise HTTPException(status_code=404, detail="Document not found")
         if doc not in col.documents:
             raise HTTPException(status_code=404, detail="Document not in the specified collection")
+
         data = await file.read()
         try:
             collections.update_document(session, user, col_uuid, doc_uuid, data)
@@ -161,19 +166,25 @@ async def delete_document(
             raise HTTPException(status_code=404, detail="Collection not found")
         if doc.owner != user.id:
             raise HTTPException(status_code=403, detail="You are not the owner of this Collection")
-        collections.delete_document(session, doc_uuid)
+        collections.delete_document(session, doc)
 
 
-# TODO - test this
-# TODO - ability to search for a document specifically
 @app.get("/documents/search")
 async def search_documents(
     user: Annotated[User, Depends(get_current_user)],
     col_uuid: UUID,
-    query: str,
+    name: str,
 ):
     with Session(engine) as session:
-        pass
+        col = collections.get_collection_by_id(session, col_uuid)
+        if col is None:
+            raise HTTPException(status_code=404, detail="Collection not found")
+        if col.owner != user:
+            raise HTTPException(status_code=403, detail="You are not the owner of this Collection")
+        documents = collections.search_documents(session, col, name)
+        if documents is None:
+            raise HTTPException(status_code=404, detail="No documents found")
+        return documents
 
 
 # TODO - test this
