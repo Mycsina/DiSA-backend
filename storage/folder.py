@@ -15,12 +15,8 @@ def recreate_structure(db: Session, root: Folder) -> FolderIntake:
     for child in root.sub_folders:
         root_folder.children.append(recreate_structure(db, child))
     for doc in root.documents:
-        if doc.next is not None:
-            print(doc)
-            print(doc.next)
-            print(doc.next.new)
-        if doc.previous is not None:
-            print(doc.previous)
+        while doc.next is not None:
+            doc = doc.next.new
         root_folder.children.append(doc)
     return root_folder
 

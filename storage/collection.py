@@ -73,12 +73,17 @@ def get_collection_hierarchy(db: Session, col_id: UUID) -> FolderIntake | None:
     return structure
 
 
-# TODO - verify that this is correct
 def update_document(db: Session, user: User, col_id: UUID, doc_id: UUID, file: bytes):
     document = get_document_by_id(db, doc_id)
     if document is None:
         raise ValueError("Document not found. This should never happen.")
-    new_document = Document(name=document.name, size=len(file), folder_id=document.folder_id, collection_id=col_id)
+    new_document = Document(
+        name=document.name,
+        size=len(file),
+        folder_id=document.folder_id,
+        collection_id=col_id,
+        access_from_date=document.access_from_date,
+    )
     update = Update(user_id=user.id, previous_id=document.id, updated_id=new_document.id)
     db.add(update)
     db.add(new_document)

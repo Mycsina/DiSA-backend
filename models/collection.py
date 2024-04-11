@@ -22,7 +22,6 @@ class DocumentBase(SQLModel):
     name: str
     size: int
     submission_date: datetime = datetime.max
-    last_updated: datetime | None = None
     access_from_date: datetime | None = None
 
     def __init__(self, **kwargs):
@@ -39,10 +38,10 @@ class Document(DocumentBase, table=True):
     folder: Folder = Relationship(back_populates="documents")
     collection: "Collection" = Relationship(back_populates="documents")
     previous: Optional["Update"] = Relationship(
-        back_populates="old", sa_relationship_kwargs={"foreign_keys": "Update.previous_id"}
+        back_populates="new", sa_relationship_kwargs={"foreign_keys": "Update.updated_id"}
     )
     next: Optional["Update"] = Relationship(
-        back_populates="new", sa_relationship_kwargs={"foreign_keys": "Update.updated_id"}
+        back_populates="old", sa_relationship_kwargs={"foreign_keys": "Update.previous_id"}
     )
 
 
