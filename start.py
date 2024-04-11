@@ -105,7 +105,6 @@ async def get_collection_hierarchy(
         return folder
 
 
-# TODO - test this
 @app.put("/collections/")
 async def update_document(
     user: Annotated[User, Depends(get_current_user)],
@@ -129,8 +128,6 @@ async def update_document(
             collections.update_document(session, user, col_uuid, doc_uuid, data)
         except IntegrityError:
             raise IntegrityBreach("Document update failed. Verify the document hasn't already been updated")
-        print(doc.next)
-        print(doc.previous)
         if doc.next is None:
             raise HTTPException(status_code=500, detail="Document update failed")
         return {"message": "Document updated successfully", "update_uuid": doc.next.id}
