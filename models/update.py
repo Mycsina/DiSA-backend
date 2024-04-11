@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 class Update(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    timestamp: datetime = datetime.now()
+    timestamp: datetime = Field(default_factory=datetime.now)
     user_id: UUID = Field(foreign_key="user.id")
     previous_id: UUID = Field(foreign_key="document.id")
     updated_id: UUID = Field(foreign_key="document.id")

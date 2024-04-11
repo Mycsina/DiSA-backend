@@ -45,6 +45,9 @@ class Document(DocumentBase, table=True):
     def is_deleted(self) -> bool:
         return any([event.type == EventTypes.Delete for event in self.events])
 
+    def last_access(self) -> datetime:
+        return max([event.timestamp for event in self.events if event.type == EventTypes.Access], default=datetime.max)
+
 
 class DocumentIntake(DocumentBase):
     content: bytes

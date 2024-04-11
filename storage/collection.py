@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import tarfile
 from typing import Sequence
@@ -6,7 +7,7 @@ from uuid import UUID
 from sqlmodel import Session, select
 
 from models.collection import Collection, Document, SharedState
-from models.event import EventTypes
+from models.event import DocumentEvent, EventTypes
 from models.folder import Folder, FolderIntake
 from models.update import Update
 from models.user import User
@@ -32,7 +33,6 @@ def get_collection_by_id(db: Session, col_id: UUID, user: User) -> Collection | 
     if collection is not None:
         if collection.is_deleted():
             return None
-        register_event(db, collection, user, EventTypes.Access)
     return collection
 
 
@@ -40,8 +40,6 @@ def get_document_by_id(db: Session, doc_id: UUID) -> Document | None:
     statement = select(Document).where(Document.id == doc_id)
     results = db.exec(statement)
     document = results.first()
-    if document is not None:
-        register_event(db, document, document.collection.owner, EventTypes.Access)
     return document
 
 
@@ -111,6 +109,35 @@ def delete_collection(db: Session, col: Collection):
 
 def search_documents(db: Session, col: Collection, name: str) -> list[Document] | None:
     docs = [doc for doc in col.documents if doc.name == name and doc.next is None]
+    for doc in docs:
+        register_event(db, doc, col.owner, EventTypes.Access)
     if len(docs) == 0:
         return None
     return docs
+
+
+def filter_documents(
+    db: Session, col: Collection, name: str | None, max_size: int | None, last_access: datetime | None
+):
+    statement = select(Document).where(Document.collection_id == col.id)
+    if name is not None:
+        statement = statement.where(Document.name == name)
+    if max_size is not None:
+        statement = statement.where(Document.size <= max_size)
+    results = db.exec(statement)
+    documents = results.all()
+    if last_access is not None:
+        documents = [doc for doc in documents if doc.last_access() >= last_access]
+    for doc in documents:
+        register_event(db, doc, col.owner, EventTypes.Access)
+    return documents
+
+
+def get_document_history(db: Session, doc: Document) -> list[Update | DocumentEvent]:
+    events = []
+    while doc.next is not None:
+        events.append(doc.next)
+        events.extend(doc.events)
+        doc = doc.next.new
+    events.sort(key=lambda x: x.timestamp, reverse=True)
+    return events

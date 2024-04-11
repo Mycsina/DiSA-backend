@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import shutil
 from http import HTTPStatus
@@ -198,25 +199,43 @@ async def search_documents(
 @app.get("/documents/filter")
 async def filter_documents(
     user: Annotated[User, Depends(get_current_user)],
-    type: str | None = None,
-    size: int | None = None,
-    owner: str | None = None,
+    col_uuid: UUID,
+    name: str | None = None,
+    max_size: int | None = None,
+    last_access: datetime | None = None,
 ):
     with Session(engine) as session:
-        pass
+        raise HTTPException(status_code=501, detail="Not implemented")
+        col = collections.get_collection_by_id(session, col_uuid, user)
+        if col is None:
+            raise HTTPException(status_code=404, detail="Collection not found")
+        if col.owner != user:
+            raise HTTPException(status_code=403, detail="You are not the owner of this Collection")
+        documents = collections.filter_documents(session, col, name, max_size, last_access)
+        if documents is None:
+            raise HTTPException(status_code=404, detail="No documents found")
+        return documents
 
 
 # TODO - test this
-# TODO - get the history of a document
-# get the history of a document
-@app.get("/documents/{doc_uuid}/history")
+@app.get("/documents/history")
 async def get_document_history(
     user: Annotated[User, Depends(get_current_user)],
     col_uuid: UUID,
     doc_uuid: UUID,
 ):
     with Session(engine) as session:
-        pass
+        col = collections.get_collection_by_id(session, col_uuid, user)
+        doc = collections.get_document_by_id(session, doc_uuid)
+        if col is None:
+            raise HTTPException(status_code=404, detail="Collection not found")
+        if col.owner != user:
+            raise HTTPException(status_code=403, detail="You are not the owner of this Collection")
+        if doc is None:
+            raise HTTPException(status_code=404, detail="Document not found")
+        if doc not in col.documents:
+            raise HTTPException(status_code=404, detail="Document not in the specified collection")
+        return collections.get_document_history(session, doc)
 
 
 # register user
