@@ -22,6 +22,7 @@ class DocumentBase(SQLModel):
     name: str
     size: int
     access_from_date: datetime | None = None
+    hash: str | None = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
