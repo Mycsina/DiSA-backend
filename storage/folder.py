@@ -1,12 +1,13 @@
 import os
-from datetime import datetime
 
 from sqlmodel import Session
 
 from models.collection import Document, DocumentIntake
+from models.event import DocumentEvent, EventTypes
 from models.folder import Folder, FolderIntake
 from models.user import User
-from models.event import Event, EventTypes
+
+from storage.event import register_event
 
 
 def recreate_structure(db: Session, root: Folder) -> FolderIntake:
@@ -44,7 +45,6 @@ def walk_folder(root: str, user: User) -> FolderIntake:
                         size=os.path.getsize(item_path),
                         content=open(item_path, "rb").read(),
                         parent_folder=parent,
-                        submission_date=datetime.now(),
                     )
                 )
         parent.children = children
@@ -72,13 +72,11 @@ def create_folder(db: Session, root: FolderIntake, db_root: Folder) -> Folder:
             db_child = Document(
                 name=child.name,
                 size=child.size,
-                submission_date=child.submission_date,
                 folder_id=root_id,
                 collection_id=db_root.collection.id,
             )
-            db_child.events.append(
-                Event(type=EventTypes.Create, user_id=db_root.collection.owner.id, document_id=db_child.id)
-            )
+            db_child.events.append(DocumentEvent(type=EventTypes.Create, user_id=db_root.collection.owner.id))
+            register_event(db, db_child, db_root.collection.owner, EventTypes.Create)
             parent.documents.append(db_child)
             db.add(db_child)
     db.commit()

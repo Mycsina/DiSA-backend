@@ -145,12 +145,12 @@ async def delete_collection(
     col_uuid: UUID,
 ):
     with Session(engine) as session:
-        doc = collections.get_collection_by_id(session, col_uuid)
-        if doc is None:
+        col = collections.get_collection_by_id(session, col_uuid)
+        if col is None:
             raise HTTPException(status_code=404, detail="Collection not found")
-        if doc.owner != user.id:
+        if col.owner != user.id:
             raise HTTPException(status_code=403, detail="You are not the owner of this Collection")
-        collections.delete_collection(session, col_uuid)
+        collections.delete_collection(session, col)
 
 
 # TODO - test this
@@ -161,11 +161,16 @@ async def delete_document(
     doc_uuid: UUID,
 ):
     with Session(engine) as session:
-        doc = collections.get_collection_by_id(session, doc_uuid)
-        if doc is None:
+        col = collections.get_collection_by_id(session, col_uuid)
+        doc = collections.get_document_by_id(session, doc_uuid)
+        if col is None:
             raise HTTPException(status_code=404, detail="Collection not found")
-        if doc.owner != user.id:
+        if col.owner != user.id:
             raise HTTPException(status_code=403, detail="You are not the owner of this Collection")
+        if doc is None:
+            raise HTTPException(status_code=404, detail="Document not found")
+        if doc not in col.documents:
+            raise HTTPException(status_code=404, detail="Document not in the specified collection")
         collections.delete_document(session, doc)
 
 

@@ -66,5 +66,22 @@ It comes with:
 }
 ```
 
+# Development
+## Migrations
+To create a migration, run the following command:
+```bash
+  poetry run alembic revision --autogenerate -m "migration message"
+```
+
+To apply the migration, run the following command:
+```bash
+  poetry run alembic upgrade head
+```
+
+To downgrade the migration, run the following command:
+```bash
+  poetry run alembic downgrade -1
+```
+
 # Need help?
 @mycsina on most platforms online

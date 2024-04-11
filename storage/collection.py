@@ -6,11 +6,12 @@ from uuid import UUID
 from sqlmodel import Session, select
 
 from models.collection import Collection, Document, SharedState
-from models.event import Event, EventTypes
+from models.event import EventTypes
 from models.folder import Folder, FolderIntake
 from models.update import Update
 from models.user import User
-from storage.folder import create_folder, walk_folder, recreate_structure
+from storage.event import register_event
+from storage.folder import create_folder, recreate_structure, walk_folder
 from storage.main import TEMP_FOLDER
 
 
@@ -37,11 +38,11 @@ def create_collection(db: Session, name: str, data: bytes, user: User, share_sta
         raise ValueError("User must have an ID to create a collection. This should never happen.")
 
     collection = Collection(name=name, share_state=share_state)
-    collection.owner = user
-    db.add(collection)
     db_folder = Folder(name=name)
-    db_folder.collection = collection
-    db.add(db_folder)
+    register_event(db, collection, user, EventTypes.Create)
+    collection.owner = user
+    collection.folder = db_folder
+    db.add(collection)
 
     if name.split(".")[-2].lower() == "tar":
         print(name.split(".")[-1].lower())
@@ -59,7 +60,7 @@ def create_collection(db: Session, name: str, data: bytes, user: User, share_sta
     else:
         # We're dealing with a single document
         doc = Document(name=name, size=len(data), folder_id=db_folder.id, collection_id=collection.id)
-        doc.events.append(Event(type=EventTypes.Create, user_id=user.id, document_id=doc.id))
+        register_event(db, doc, user, EventTypes.Create)
         db.add(doc)
     db.commit()
     return collection
@@ -90,17 +91,14 @@ def update_document(db: Session, user: User, col_id: UUID, doc_id: UUID, file: b
 
 # TODO - verify that this is correct
 def delete_document(db: Session, doc: Document):
-    doc.events.append(Event(type=EventTypes.Delete, user_id=doc.folder.owner_id, document_id=doc.id))
+    register_event(db, doc, doc.collection.owner, EventTypes.Delete)
     db.commit()
     return True
 
 
 # TODO - verify that this is correct
-def delete_collection(db: Session, col_id: UUID):
-    collection = get_collection_by_id(db, col_id)
-    if collection is None:
-        raise ValueError("Collection not found")
-    db.delete(collection)
+def delete_collection(db: Session, col: Collection):
+    register_event(db, col, col.owner, EventTypes.Delete)
     db.commit()
     return True
 

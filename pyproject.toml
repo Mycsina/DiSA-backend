@@ -22,6 +22,7 @@ sqlalchemy = "^2.0.28"
 sqlmodel = "^0.0.16"
 python-dotenv = "^1.0.1"
 requests = "^2.31.0"
+alembic = "^1.13.1"
 
 [tool.poetry.dev-dependencies]
 black = "^21.12b0"

@@ -5,10 +5,10 @@ from uuid import UUID, uuid4
 
 from sqlmodel import Field, Relationship, SQLModel
 
-from models.event import Event
+from models.event import CollectionEvent, DocumentEvent
 from models.folder import Folder, FolderIntake
-from models.user import User
 from models.update import Update
+from models.user import User
 
 
 class SharedState(str, Enum):
@@ -21,12 +21,10 @@ class SharedState(str, Enum):
 class DocumentBase(SQLModel):
     name: str
     size: int
-    submission_date: datetime = datetime.max
     access_from_date: datetime | None = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.submission_date = datetime.now()
 
 
 class Document(DocumentBase, table=True):
@@ -34,7 +32,7 @@ class Document(DocumentBase, table=True):
     folder_id: UUID = Field(index=True, foreign_key="folder.id")
     collection_id: UUID = Field(index=True, foreign_key="collection.id")
 
-    events: list["Event"] = Relationship(back_populates="document")
+    events: list["DocumentEvent"] = Relationship(back_populates="document")
     folder: Folder = Relationship(back_populates="documents")
     collection: "Collection" = Relationship(back_populates="documents")
     previous: Optional["Update"] = Relationship(
@@ -54,14 +52,11 @@ class CollectionBase(SQLModel):
     id: UUID
     name: str
     owner_id: UUID
-    submission_date: datetime = datetime.max
-    last_update: datetime | None = None
     share_state: SharedState = SharedState.private
     access_from_date: datetime | None = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.submission_date = datetime.now()
 
     @property
     def size(self):
@@ -84,3 +79,4 @@ class Collection(CollectionBase, table=True):
     folder: Folder = Relationship(back_populates="collection")
     owner: "User" = Relationship(back_populates="collections")
     documents: list["Document"] = Relationship(back_populates="collection")
+    events: list["CollectionEvent"] = Relationship(back_populates="collection")

@@ -1,11 +1,12 @@
 from enum import Enum
-from uuid import UUID, uuid4
 from typing import TYPE_CHECKING
+from uuid import UUID, uuid4
+
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
-    from models.event import Event
     from models.collection import Collection
+    from models.event import CollectionEvent, DocumentEvent
     from models.update import Update
 
 
@@ -48,7 +49,8 @@ class User(UserBase, table=True):
     nic: str = Field(unique=True)
     role: UserRole = Field(default=UserRole.USER)
 
-    events: list["Event"] = Relationship(back_populates="user")
+    doc_events: list["DocumentEvent"] = Relationship(back_populates="user")
+    col_events: list["CollectionEvent"] = Relationship(back_populates="user")
     collections: list["Collection"] = Relationship(back_populates="owner")
     updates: list["Update"] = Relationship(back_populates="user")
 
