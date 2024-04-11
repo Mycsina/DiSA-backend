@@ -53,11 +53,6 @@ def verify_user(db: Session, username: str, password: str) -> User | None:
     return user
 
 
-# TODO - this is for the CMD peeps, verify that the session exists with their token
-def verify_session(id_token: str, session_token: str) -> User | None:
-    pass
-
-
 # https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/#handle-jwt-tokens
 def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)):
     to_encode = data.copy()
@@ -72,8 +67,7 @@ def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes
 
 def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     with Session(engine) as session:
-        credentials_exception = BearerException
-        credentials_exception.detail = "Could not validate token"
+        credentials_exception = BearerException("Could not validate token")
         with session:
             try:
                 payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])

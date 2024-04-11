@@ -23,8 +23,9 @@ class UserSafe(SQLModel):
 class UserBase(SQLModel):
     name: str | None = None
     email: str
+    nic: str
     password: str | None = None
-    mobile_key: str | None = None
+    cmd_token: str | None = None
     token: str | None = None
     role: UserRole | None = UserRole.USER
 
@@ -33,17 +34,18 @@ class UserCreate(UserBase):
     name: str
     email: str
     password: str
+    nic: str
 
 
 class UserCMDCreate(UserBase):
     email: str
-    mobile_key: str
-    session_token: str
+    cmd_token: str
 
 
 class User(UserBase, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     email: str = Field(unique=True)
+    nic: str = Field(unique=True)
     role: UserRole = Field(default=UserRole.USER)
 
     events: list["Event"] = Relationship(back_populates="user")
@@ -51,5 +53,5 @@ class User(UserBase, table=True):
     updates: list["Update"] = Relationship(back_populates="user")
 
 
-def strip_sensitive(user: User) -> UserSafe:
+def strip_sensitive(user: UserBase) -> UserSafe:
     return UserSafe(email=user.email, role=user.role, name=user.name)

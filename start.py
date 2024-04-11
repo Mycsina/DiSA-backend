@@ -6,24 +6,23 @@ from uuid import UUID
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, SQLModel
 
 import storage.collection as collections
 import storage.user as users
-from exceptions import BearerException, CMDFailure
+from exceptions import BearerException, CMDFailure, IntegrityBreach
 from models.collection import Collection, SharedState
 from models.folder import FolderIntake
-from models.user import User
-from models.user import UserCMDCreate, UserCreate
+from models.user import User, UserCMDCreate, UserCreate
 from security import (
     Token,
     create_access_token,
     get_current_user,
     password_hash,
-    verify_session,
     verify_user,
 )
-from storage.main import engine, TEMP_FOLDER, TEST, DB_URL
+from storage.main import DB_URL, TEMP_FOLDER, TEST, engine
 
 app = FastAPI()
 
@@ -126,7 +125,12 @@ async def update_document(
         if doc not in col.documents:
             raise HTTPException(status_code=404, detail="Document not in the specified collection")
         data = await file.read()
-        collections.update_document(session, user, col_uuid, doc_uuid, data)
+        try:
+            collections.update_document(session, user, col_uuid, doc_uuid, data)
+        except IntegrityError:
+            raise IntegrityBreach("Document update failed. Verify the document hasn't already been updated")
+        print(doc.next)
+        print(doc.previous)
         if doc.next is None:
             raise HTTPException(status_code=500, detail="Document update failed")
         return {"message": "Document updated successfully", "update_uuid": doc.next.id}
@@ -160,7 +164,7 @@ async def delete_document(
             raise HTTPException(status_code=404, detail="Collection not found")
         if doc.owner != user.id:
             raise HTTPException(status_code=403, detail="You are not the owner of this Collection")
-        collections.delete_document(session, col_uuid, doc_uuid)
+        collections.delete_document(session, doc_uuid)
 
 
 # TODO - test this
@@ -220,12 +224,11 @@ async def register_user(user: UserCreate):
 # TODO - test this
 @app.post("/users/cmd")
 async def register_with_cmd(user: UserCMDCreate):
-    # TODO - implement this
-    return HTTPException(status_code=HTTPStatus.NOT_IMPLEMENTED)
     with Session(engine) as session:
-        user = users.create_cmd_user(session, user)
-        token = create_access_token(data={"sub": user.id})
-        user.token = token
+        nic = users.retrieve_nic(user.cmd_token)
+        db_user = users.create_cmd_user(session, user, nic)
+        token = create_access_token(data={"sub": str(db_user.id)})
+        users.update_user_token(session, db_user, token)
         return {"message": f"User {user.mobile_key} created successfully", "token": token}
 
 
@@ -236,7 +239,7 @@ async def login_with_user_password(
     with Session(engine) as session:
         user = verify_user(session, form_data.username, form_data.password)
         if user is None:
-            raise BearerException
+            raise BearerException()
         access_token = create_access_token(data={"sub": str(user.id)})
         users.update_user_token(session, user, access_token)
         return Token(access_token=access_token, token_type="Bearer")
@@ -244,13 +247,12 @@ async def login_with_user_password(
 
 # TODO - test this
 @app.get("users/login/cmd")
-async def login_with_cmd(id_token: str, session_token: str) -> Token:
-    # TODO - implement this (verify_session)
-    return HTTPException(status_code=HTTPStatus.NOT_IMPLEMENTED)
+async def login_with_cmd(id_token: str) -> Token:
     with Session(engine) as session:
-        user = verify_session(id_token, session_token)
+        nic = users.retrieve_nic(id_token)
+        user = users.get_user_by_nic(session, nic)
         if user is None:
-            raise CMDFailure
-        access_token = create_access_token(data={"sub": user.user_id})
+            raise CMDFailure()
+        access_token = create_access_token(data={"sub": user.id})
         users.update_user_token(session, user, access_token)
         return Token(access_token=access_token, token_type="Bearer")

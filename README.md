@@ -30,11 +30,12 @@ It comes with:
 ```json
 {
   "name": "test",
-  "password": "$2b$12$efjMKEXXiPswWSo0vQVRHO/9uAUUWg.B5XuFPODFUnxzC.lnR/2yq",
-  "mobile_key": null,
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxY2Q4NzEzNC01NTljLTQzZTMtOGE5OS1lY2I1MTM0MzY5ODkiLCJleHAiOjE3MTIwOTM3ODB9.kKPTWaRsQ0X-Wrs4se9Yedn99QoNIsxOO5RHlt1NHPw",
-  "id": "1cd87134559c43e38a99ecb513436989",
+  "password": "$2b$12$iFMxI.xziyqiG7lS8jBnB.NLhU7aNTwlizXR8KrRil.zVrMncrwpi",
+  "cmd_token": null,
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5MTBkYzBjMC1jMGNhLTQ5NjctODkzMS05MmVkNmM5OGE0OGUiLCJleHAiOjE3MTI3OTQ1Njh9.B1edr-57h9LbID6BZvL5gCpM8GrANQRU1jT6K0CVZ2M",
+  "id": "910dc0c0c0ca4967893192ed6c98a48e",
   "email": "text@example.com",
+  "nic": "237583734",
   "role": "USER"
 }
 ```
@@ -43,12 +44,12 @@ It comes with:
 ```json
 {
   "name": "README.md",
-  "submission_date": "2024-04-02 22:01:26.453626",
+  "submission_date": "2024-04-11 00:47:45.466539",
   "last_update": null,
   "share_state": "private",
   "access_from_date": null,
-  "id": "f52a45e7926f4a69b20c00205c114e94",
-  "owner_id": "1cd87134559c43e38a99ecb513436989"
+  "id": "61e665d97f904e6f9d898069b7c641a8",
+  "owner_id": "910dc0c0c0ca4967893192ed6c98a48e"
 }
 ```
 
@@ -56,12 +57,12 @@ It comes with:
 ```json
 {
   "name": "c2023-adv-06.tar.gz",
-  "submission_date": "2024-04-02 22:01:26.453626",
+  "submission_date": "2024-04-11 00:48:28.782808",
   "last_update": null,
   "share_state": "private",
   "access_from_date": null,
-  "id": "85726967a1154a46828cd1099282bd2d",
-  "owner_id": "1cd87134559c43e38a99ecb513436989"
+  "id": "0c8589364f934efeaca79824d5237289",
+  "owner_id": "910dc0c0c0ca4967893192ed6c98a48e"
 }
 ```
 
