@@ -1,3 +1,4 @@
+import hashlib
 import os
 
 from sqlmodel import Session
@@ -47,11 +48,14 @@ def walk_folder(root: str, user: User) -> FolderIntake:
                 folders_to_visit.append(item_path)
                 parents_of_folders_to_visit.append(children[-1])
             else:
+                content = open(item_path, "rb").read()
+                file_hash = hashlib.sha256(content).hexdigest()
                 children.append(
                     DocumentIntake(
                         name=item,
                         size=os.path.getsize(item_path),
-                        content=open(item_path, "rb").read(),
+                        content=content,
+                        hash=file_hash,
                         parent_folder=parent,
                     )
                 )
@@ -61,7 +65,6 @@ def walk_folder(root: str, user: User) -> FolderIntake:
 
 def create_folder(db: Session, root: FolderIntake, db_root: Folder) -> Folder:
     """Creates Folder and Document structures in the database from the given root FolderIntake object."""
-    print(db_root.collection)
     root_id = db_root.id
     if root_id is None:
         raise ValueError("Could not create root folder")
@@ -82,6 +85,7 @@ def create_folder(db: Session, root: FolderIntake, db_root: Folder) -> Folder:
                 size=child.size,
                 folder_id=root_id,
                 collection_id=db_root.collection.id,
+                hash=child.hash,
             )
             register_event(db, db_child, db_root.collection.owner, EventTypes.Create)
             parent.documents.append(db_child)
