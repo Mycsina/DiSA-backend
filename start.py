@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from datetime import datetime
 import os
 import shutil
@@ -25,12 +26,7 @@ from security import (
 )
 from storage.main import DB_URL, TEMP_FOLDER, TEST, engine
 
-app = FastAPI()
 
-
-# TODO - this is deprecated, implement new way of creating tables at startup
-# https://fastapi.tiangolo.com/advanced/events/
-@app.on_event("startup")
 def on_startup():
     if TEST:
         db_path = DB_URL.split("///")[1]
@@ -40,9 +36,6 @@ def on_startup():
         os.makedirs(TEMP_FOLDER)
 
 
-# TODO - this is deprecated, implement new way of cleaning up at shutdown
-# https://fastapi.tiangolo.com/advanced/events/
-@app.on_event("shutdown")
 def on_shutdown():
     if TEST:
         db_path = DB_URL.split("///")[1]
@@ -51,6 +44,16 @@ def on_shutdown():
     if os.path.exists(TEMP_FOLDER):
         # Remove the temporary folder and its contents
         shutil.rmtree(TEMP_FOLDER)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    on_startup()
+    yield
+    on_shutdown()
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/")
@@ -217,7 +220,6 @@ async def filter_documents(
         return documents
 
 
-# TODO - test this
 @app.get("/documents/history")
 async def get_document_history(
     user: Annotated[User, Depends(get_current_user)],

@@ -44,11 +44,9 @@ It comes with:
 ```json
 {
   "name": "README.md",
-  "submission_date": "2024-04-11 00:47:45.466539",
-  "last_update": null,
   "share_state": "private",
   "access_from_date": null,
-  "id": "61e665d97f904e6f9d898069b7c641a8",
+  "id": "69c7cd429a94437bb222be8df0d1d112",
   "owner_id": "910dc0c0c0ca4967893192ed6c98a48e"
 }
 ```
@@ -57,11 +55,9 @@ It comes with:
 ```json
 {
   "name": "c2023-adv-06.tar.gz",
-  "submission_date": "2024-04-11 00:48:28.782808",
-  "last_update": null,
   "share_state": "private",
   "access_from_date": null,
-  "id": "0c8589364f934efeaca79824d5237289",
+  "id": "9872c9b88f5f4eb99290613fafc948f9",
   "owner_id": "910dc0c0c0ca4967893192ed6c98a48e"
 }
 ```

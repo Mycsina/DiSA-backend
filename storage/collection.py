@@ -1,4 +1,5 @@
 from datetime import datetime
+import hashlib
 import os
 import tarfile
 from typing import Sequence
@@ -57,8 +58,7 @@ def create_collection(db: Session, name: str, data: bytes, user: User, share_sta
         with open(f"{TEMP_FOLDER}/{name}", "wb") as f:
             f.write(data)
         with tarfile.open(f"{TEMP_FOLDER}/{name}") as tar:
-            # TODO - replace deprecated method
-            tar.extractall(f"{TEMP_FOLDER}")
+            tar.extractall(f"{TEMP_FOLDER}", filter="data")
         os.remove(f"{TEMP_FOLDER}/{name}")
         # Create the folder structure, walking through the extracted files
         root = walk_folder(f"{TEMP_FOLDER}/{name.split('.')[0]}", user)
@@ -66,7 +66,8 @@ def create_collection(db: Session, name: str, data: bytes, user: User, share_sta
 
     else:
         # We're dealing with a single document
-        doc = Document(name=name, size=len(data), folder_id=db_folder.id, collection_id=collection.id)
+        file_hash = hashlib.sha256(data).hexdigest()
+        doc = Document(name=name, size=len(data), folder_id=db_folder.id, collection_id=collection.id, hash=file_hash)
         register_event(db, doc, user, EventTypes.Create)
         db.add(doc)
     db.commit()
@@ -79,12 +80,14 @@ def get_collection_hierarchy(db: Session, col: Collection, user: User) -> Folder
 
 
 def update_document(db: Session, user: User, col: Collection, doc: Document, file: bytes):
+    file_hash = hashlib.sha256(file).hexdigest()
     new_document = Document(
         name=doc.name,
         size=len(file),
         folder_id=doc.folder_id,
         collection_id=col.id,
         access_from_date=doc.access_from_date,
+        hash=file_hash,
     )
     update = Update(user_id=user.id, previous_id=doc.id, updated_id=new_document.id)
     db.add(update)
@@ -93,14 +96,12 @@ def update_document(db: Session, user: User, col: Collection, doc: Document, fil
     return doc
 
 
-# TODO - verify that this is correct
 def delete_document(db: Session, doc: Document):
     register_event(db, doc, doc.collection.owner, EventTypes.Delete)
     db.commit()
     return True
 
 
-# TODO - verify that this is correct
 def delete_collection(db: Session, col: Collection):
     register_event(db, col, col.owner, EventTypes.Delete)
     db.commit()
