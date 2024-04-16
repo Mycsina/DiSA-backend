@@ -80,3 +80,8 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
             if user is None:
                 raise credentials_exception
             return user
+
+
+# TODO: blockchain
+def verify_manifest(manifest_hash: str, transaction_address: str) -> bool:
+    return True

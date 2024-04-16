@@ -1,7 +1,8 @@
-from datetime import datetime
 import hashlib
-import os
+import io
+import shutil
 import tarfile
+from datetime import datetime
 from typing import Sequence
 from uuid import UUID
 
@@ -12,6 +13,7 @@ from models.event import DocumentEvent, EventTypes
 from models.folder import Folder, FolderIntake
 from models.update import Update
 from models.user import User
+from security import verify_manifest
 from storage.event import register_event
 from storage.folder import create_folder, recreate_structure, walk_folder
 from storage.main import TEMP_FOLDER
@@ -44,7 +46,15 @@ def get_document_by_id(db: Session, doc_id: UUID) -> Document | None:
     return document
 
 
-def create_collection(db: Session, name: str, data: bytes, user: User, share_state: SharedState) -> Collection:
+def create_collection(
+    db: Session,
+    name: str,
+    data: bytes,
+    user: User,
+    share_state: SharedState,
+    manifest_hash: str,
+    transaction_address: str,
+) -> Collection:
     collection = Collection(name=name, share_state=share_state)
     db_folder = Folder(name=name)
     register_event(db, collection, user, EventTypes.Create)
@@ -52,17 +62,19 @@ def create_collection(db: Session, name: str, data: bytes, user: User, share_sta
     collection.folder = db_folder
     db.add(collection)
 
+    if not verify_manifest(manifest_hash, transaction_address):
+        raise AssertionError("Manifest hash does not match the transaction address")
+
     if name.split(".")[-2].lower() == "tar":
         print(name.split(".")[-1].lower())
         # We're dealing with a zipped folder
-        with open(f"{TEMP_FOLDER}/{name}", "wb") as f:
-            f.write(data)
-        with tarfile.open(f"{TEMP_FOLDER}/{name}") as tar:
+        f = io.BytesIO(data)
+        with tarfile.open(fileobj=f) as tar:
             tar.extractall(f"{TEMP_FOLDER}", filter="data")
-        os.remove(f"{TEMP_FOLDER}/{name}")
         # Create the folder structure, walking through the extracted files
         root = walk_folder(f"{TEMP_FOLDER}/{name.split('.')[0]}", user)
         db_folder = create_folder(db, root, db_folder)
+        shutil.rmtree(f"{TEMP_FOLDER}/{name.split('.')[0]}")
 
     else:
         # We're dealing with a single document

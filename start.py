@@ -1,7 +1,7 @@
-from contextlib import asynccontextmanager
-from datetime import datetime
 import os
 import shutil
+from contextlib import asynccontextmanager
+from datetime import datetime
 from http import HTTPStatus
 from typing import Annotated, Sequence
 from uuid import UUID
@@ -64,6 +64,8 @@ async def root():
 @app.post("/collections/")
 async def create_collection(
     user: Annotated[User, Depends(get_current_user)],
+    manifest_hash: str | None = None,
+    transaction_address: str | None = None,
     file: UploadFile = File(...),
     share_state: SharedState = SharedState.private,
 ):
@@ -72,7 +74,9 @@ async def create_collection(
         if name is None:
             raise HTTPException(status_code=400, detail="No file name provided")
         data = await file.read()
-        collection = collections.create_collection(session, name, data, user, share_state)
+        collection = collections.create_collection(
+            session, name, data, user, share_state, manifest_hash, transaction_address
+        )
 
         return {"message": "Collection created successfully", "uuid": collection.id}
 
