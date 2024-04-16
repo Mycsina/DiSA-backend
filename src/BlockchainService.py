@@ -1,13 +1,18 @@
 import json
-from cryptography.hazmat.primitives import hashes
+import os
+
+from dotenv import load_dotenv
 import web3
 import os
 from cryptography.hazmat.primitives import hashes
 
+load_dotenv()
+
+private_key = os.environ.get("PRIVATE_KEY")
+
 
 class BlockchainService:
     def __init__(self, abi_location="resources/abi.json"):
-        private_key = os.environ.get("PRIVATE_KEY")
         with open(abi_location) as f:
             abi = json.load(f)
 
