@@ -24,11 +24,11 @@ from security import (
     password_hash,
     verify_user,
 )
-from storage.main import DB_URL, TEMP_FOLDER, TEST, engine
+from storage.main import DB_URL, TEMP_FOLDER, TEST_MODE, engine
 
 
 def on_startup():
-    if TEST:
+    if TEST_MODE:
         db_path = DB_URL.split("///")[1]
         shutil.copy2(db_path, db_path + ".bak")
     SQLModel.metadata.create_all(engine)
@@ -37,7 +37,7 @@ def on_startup():
 
 
 def on_shutdown():
-    if TEST:
+    if TEST_MODE:
         db_path = DB_URL.split("///")[1]
         shutil.copy2(db_path + ".bak", db_path)
         os.remove(db_path + ".bak")
