@@ -1,12 +1,18 @@
 import json
-from cryptography.hazmat.primitives import hashes
+import os
+
+from dotenv import load_dotenv
 import web3
 import os
 from cryptography.hazmat.primitives import hashes
 
-class BlockchainService():
-    def __init__(self,abi_location="resources/abi.json"):
-        private_key = os.environ.get("PRIVATE_KEY")
+load_dotenv()
+
+private_key = os.environ.get("PRIVATE_KEY")
+
+
+class BlockchainService:
+    def __init__(self, abi_location="resources/abi.json"):
         with open(abi_location) as f:
             abi=json.load(f)
 
@@ -34,11 +40,9 @@ class BlockchainService():
             "from": self.account.address
         })
 
-        txn = self.contract.functions[function_name](*function_args).buildTransaction({
-            "from": self.account.address,
-            "gas": estimated_gas,
-            "gasPrice": self.w3.eth.gas_price
-        })
+        txn = self.contract.functions[function_name](*function_args).buildTransaction(
+            {"from": self.account.address, "gas": estimated_gas, "gasPrice": self.w3.eth.gas_price}
+        )
 
         signed_txn = self.w3.eth.account.sign_transaction(txn, private_key)
         tx_hash = self.w3.eth.send_transaction(signed_txn)

@@ -1,6 +1,7 @@
-from datetime import datetime
-import os
+import hashlib
+import io
 import tarfile
+from datetime import datetime
 from typing import Sequence
 from uuid import UUID
 
@@ -11,9 +12,10 @@ from models.event import DocumentEvent, EventTypes
 from models.folder import Folder, FolderIntake
 from models.update import Update
 from models.user import User
+from security import verify_manifest
 from storage.event import register_event
 from storage.folder import create_folder, recreate_structure, walk_folder
-from storage.main import TEMP_FOLDER
+from storage.main import AM_TRANSFER_PATH, TEMP_FOLDER, create_am_package, sam
 
 
 def get_collections(db: Session, user: User) -> Sequence[Collection]:
@@ -43,32 +45,66 @@ def get_document_by_id(db: Session, doc_id: UUID) -> Document | None:
     return document
 
 
-def create_collection(db: Session, name: str, data: bytes, user: User, share_state: SharedState) -> Collection:
+def create_collection(
+    db: Session,
+    name: str,
+    data: bytes,
+    user: User,
+    share_state: SharedState,
+    manifest_hash: str,
+    transaction_address: str,
+) -> Collection:
+
     collection = Collection(name=name, share_state=share_state)
     db_folder = Folder(name=name)
     register_event(db, collection, user, EventTypes.Create)
     collection.owner = user
     collection.folder = db_folder
-    db.add(collection)
+
+    if not verify_manifest(manifest_hash, transaction_address):
+        raise AssertionError("Manifest hash does not match the transaction address")
 
     if name.split(".")[-2].lower() == "tar":
-        print(name.split(".")[-1].lower())
         # We're dealing with a zipped folder
-        with open(f"{TEMP_FOLDER}/{name}", "wb") as f:
-            f.write(data)
-        with tarfile.open(f"{TEMP_FOLDER}/{name}") as tar:
-            # TODO - replace deprecated method
-            tar.extractall(f"{TEMP_FOLDER}")
-        os.remove(f"{TEMP_FOLDER}/{name}")
+        f = io.BytesIO(data)
+        with tarfile.open(fileobj=f) as tar:
+            tar.extractall(f"{AM_TRANSFER_PATH}/{TEMP_FOLDER}", filter="data")
         # Create the folder structure, walking through the extracted files
-        root = walk_folder(f"{TEMP_FOLDER}/{name.split('.')[0]}", user)
+        folder_name = f"{AM_TRANSFER_PATH}/{TEMP_FOLDER}/{name.split('.')[0]}"
+        root = walk_folder(folder_name, user)
         db_folder = create_folder(db, root, db_folder)
+        """
+        # Create the package in Archivematica
+        am_name = f"vagrant/main/{TEMP_FOLDER}/{name.split('.')[0]}"
+        transfer_id = create_am_package(am_name)
+        sip = sam.get_sip_from_transfer(transfer_id)
+        dip = sam.get_dip_from_sip(sip)
+        # Update the collection with the SIP and DIP UUIDs
+        collection.sip = sip
+        collection.dip = dip
+        """
 
     else:
         # We're dealing with a single document
-        doc = Document(name=name, size=len(data), folder_id=db_folder.id, collection_id=collection.id)
+        file_hash = hashlib.sha256(data).hexdigest()
+        doc = Document(name=name, size=len(data), folder_id=db_folder.id, collection_id=collection.id, hash=file_hash)
         register_event(db, doc, user, EventTypes.Create)
         db.add(doc)
+        """
+        # Create a temporary folder to store the document
+        folder_name = f"{AM_TRANSFER_PATH}/{TEMP_FOLDER}/{name}"
+        with open(f"{folder_name}/{name}", "wb") as f:
+            f.write(data)
+        # Create the package in Archivematica
+        transfer_id = create_am_package(folder_name)
+        sip = sam.get_sip_from_transfer(transfer_id)
+        dip = sam.get_dip_from_sip(sip)
+        # Update the collection with the SIP and DIP UUIDs
+        collection.sip = sip
+        collection.dip = dip
+        """
+
+    db.add(collection)
     db.commit()
     return collection
 
@@ -79,12 +115,14 @@ def get_collection_hierarchy(db: Session, col: Collection, user: User) -> Folder
 
 
 def update_document(db: Session, user: User, col: Collection, doc: Document, file: bytes):
+    file_hash = hashlib.sha256(file).hexdigest()
     new_document = Document(
         name=doc.name,
         size=len(file),
         folder_id=doc.folder_id,
         collection_id=col.id,
         access_from_date=doc.access_from_date,
+        hash=file_hash,
     )
     update = Update(user_id=user.id, previous_id=doc.id, updated_id=new_document.id)
     db.add(update)
@@ -93,14 +131,12 @@ def update_document(db: Session, user: User, col: Collection, doc: Document, fil
     return doc
 
 
-# TODO - verify that this is correct
 def delete_document(db: Session, doc: Document):
     register_event(db, doc, doc.collection.owner, EventTypes.Delete)
     db.commit()
     return True
 
 
-# TODO - verify that this is correct
 def delete_collection(db: Session, col: Collection):
     register_event(db, col, col.owner, EventTypes.Delete)
     db.commit()

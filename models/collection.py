@@ -22,7 +22,7 @@ class DocumentBase(SQLModel):
     name: str
     size: int
     access_from_date: datetime | None = None
-    hash: str | None = None
+    hash: str
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -32,6 +32,7 @@ class Document(DocumentBase, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     folder_id: UUID = Field(index=True, foreign_key="folder.id")
     collection_id: UUID = Field(index=True, foreign_key="collection.id")
+    hash: str = Field(index=True)
 
     events: list["DocumentEvent"] = Relationship(back_populates="document")
     folder: Folder = Relationship(back_populates="documents")
@@ -82,6 +83,8 @@ class CollectionIntake(CollectionBase):
 class Collection(CollectionBase, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     owner_id: UUID | None = Field(default=None, foreign_key="user.id", nullable=False)
+    sip: str | None = Field(default=None)
+    dip: str | None = Field(default=None)
 
     folder: Folder = Relationship(back_populates="collection")
     owner: "User" = Relationship(back_populates="collections")

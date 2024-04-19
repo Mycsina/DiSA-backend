@@ -1,6 +1,7 @@
-from datetime import datetime
 import os
 import shutil
+from contextlib import asynccontextmanager
+from datetime import datetime
 from http import HTTPStatus
 from typing import Annotated, Sequence
 from uuid import UUID
@@ -23,16 +24,11 @@ from security import (
     password_hash,
     verify_user,
 )
-from storage.main import DB_URL, TEMP_FOLDER, TEST, engine
-
-app = FastAPI()
+from storage.main import DB_URL, TEMP_FOLDER, TEST_MODE, engine
 
 
-# TODO - this is deprecated, implement new way of creating tables at startup
-# https://fastapi.tiangolo.com/advanced/events/
-@app.on_event("startup")
 def on_startup():
-    if TEST:
+    if TEST_MODE:
         db_path = DB_URL.split("///")[1]
         shutil.copy2(db_path, db_path + ".bak")
     SQLModel.metadata.create_all(engine)
@@ -40,17 +36,24 @@ def on_startup():
         os.makedirs(TEMP_FOLDER)
 
 
-# TODO - this is deprecated, implement new way of cleaning up at shutdown
-# https://fastapi.tiangolo.com/advanced/events/
-@app.on_event("shutdown")
 def on_shutdown():
-    if TEST:
+    if TEST_MODE:
         db_path = DB_URL.split("///")[1]
         shutil.copy2(db_path + ".bak", db_path)
         os.remove(db_path + ".bak")
     if os.path.exists(TEMP_FOLDER):
         # Remove the temporary folder and its contents
         shutil.rmtree(TEMP_FOLDER)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    on_startup()
+    yield
+    on_shutdown()
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/")
@@ -61,6 +64,8 @@ async def root():
 @app.post("/collections/")
 async def create_collection(
     user: Annotated[User, Depends(get_current_user)],
+    manifest_hash: str | None = None,
+    transaction_address: str | None = None,
     file: UploadFile = File(...),
     share_state: SharedState = SharedState.private,
 ):
@@ -69,7 +74,9 @@ async def create_collection(
         if name is None:
             raise HTTPException(status_code=400, detail="No file name provided")
         data = await file.read()
-        collection = collections.create_collection(session, name, data, user, share_state)
+        collection = collections.create_collection(
+            session, name, data, user, share_state, manifest_hash, transaction_address
+        )
 
         return {"message": "Collection created successfully", "uuid": collection.id}
 
@@ -217,7 +224,6 @@ async def filter_documents(
         return documents
 
 
-# TODO - test this
 @app.get("/documents/history")
 async def get_document_history(
     user: Annotated[User, Depends(get_current_user)],

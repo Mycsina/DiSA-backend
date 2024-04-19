@@ -24,14 +24,14 @@ transfer_id = response["id"]
 print("Transfer ID: " + transfer_id)
 am.transfer_uuid = transfer_id
 print(am.get_transfer_status())
-
+"""
 # Create package
-transfer_id = sam.create_package("vagrant/main/test")["id"]
+transfer_id = sam.create_package("local-transfers/transfer/tmp")["id"]
+print(transfer_id)
 sip_uuid = sam.get_sip_from_transfer(transfer_id)
 print(sip_uuid)
 dip_uuid = sam.get_dip_from_sip(sip_uuid)
 print(dip_uuid)
-"""
 
 # List completed transfers
 assert am.completed_transfers() == sam.completed_transfers()
