@@ -11,6 +11,7 @@ load_dotenv()
 private_key = os.environ.get("PRIVATE_KEY")
 
 
+# TODO: Add tests
 class BlockchainService:
     def __init__(self, abi_location="resources/abi.json"):
         with open(abi_location) as f:
@@ -20,15 +21,18 @@ class BlockchainService:
         self.w3 = web3.Web3(web3.Web3.HTTPProvider("https://rpc-mumbai.maticvigil.com"))
         self.account = self.w3.eth.account.from_key(private_key)
 
-    def to_hash(self, files):
+    def to_hash(self, manifest: bytes) -> bytes:
         """
         hashes one or more files with sha256
         files: list of bytes arrays (each representing a file)
         """
         digest = hashes.Hash(hashes.SHA256())
-        for file in files:
-            digest.update(file)
+        digest.update(manifest)
         return digest.finalize()
+
+    def save_contract(self, originalHash: bytes, processedHash: bytes, url: int):
+        function_name = "storeCertificate"
+        function_args = [originalHash, processedHash, url]
 
     def save_contract(self, originalHash, processedHash, url):
         private_key = os.environ.get("PRIVATE_KEY")
@@ -47,11 +51,47 @@ class BlockchainService:
         tx_hash = self.w3.eth.send_transaction(signed_txn)
         return tx_hash
 
-    def get_args_from_transaction(self, tx_hash, event_name="hashStored"):
-        receipt = self.w3.eth.getTransactionReceipt(tx_hash)
-        event_logs = self.contract.events[event_name].processReceipt(receipt)
+    def get_transaction_receipt(self, tx_hash: str, timeout=120) -> dict:
+        """
+        waits for the transaction to be included in a block
+        see https://web3py.readthedocs.io/en/stable/web3.eth.html#web3.eth.Eth.wait_for_transaction_receipt for receipt contents
+        raises:
+            web3.exceptions.TimeExhausted: timeout elapsed
+        """
+        return self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=timeout)
 
-        if event_logs:
-            return event_logs[0].args
+    def get_manifest_hash(self, receipt: dict) -> str:
+        """
+        returns the stored manifest hash, given the transaction's receipt
+        raises:
+            keyError: either there were no storeHash event (or it didn't have the originalHash argument)
+        """
+        event_logs = self.contract.events.hashStored().process_receipt(receipt)
+
+        if event_logs and len(event_logs) >= 1:
+            return event_logs[0]["args"]["originalHash"]
         else:
-            return []
+            raise KeyError("no matching event found")
+
+    def get_certificate_args(self, receipt: dict) -> dict:
+        """
+        returns the originalHash, processedHash and url from the certificate, given the transaction's receipt
+        raises:
+            keyError: no valid event found
+        """
+        event_logs = self.contract.events.certificateStored().process_receipt(receipt)
+
+        if event_logs and len(event_logs) >= 1:
+            return event_logs[0]["args"]
+        else:
+            raise KeyError("no matching event found")
+
+    def get_block_timestamp(self, receipt: dict) -> int:
+        """
+        returns the timestamp in which the transaction was inserted on the block
+        raises:
+            web3.exceptions.BlockNotFoundError: block on the receipt wasn't found
+            keyError: invalid receipt (or invalid block)
+        """
+        blockNumber = receipt["blockNumber"]
+        return self.w3.eth.get_block(blockNumber)["timestamp"]
