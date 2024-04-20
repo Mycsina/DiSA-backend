@@ -269,8 +269,8 @@ async def register_with_cmd(user: UserCMDCreate):
         users.update_user_token(session, db_user, token)
         return {"message": f"User {user.mobile_key} created successfully", "token": token}
 
-
-@app.get("/users/login/")
+# Changed login to post because get can't have a body
+@app.post("/users/login/")
 async def login_with_user_password(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> Token:
