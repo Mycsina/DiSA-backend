@@ -8,6 +8,7 @@ from uuid import UUID
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, SQLModel
 
@@ -55,6 +56,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# TODO: Make this dev only
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 async def root():
@@ -87,7 +96,7 @@ async def get_all_collections(
 ) -> Sequence[Collection]:
     with Session(engine) as session:
         return collections.get_collections(session, user)
-    
+
 @app.get("/collections/user")
 async def get_user_collections(
     user: Annotated[User, Depends(get_current_user)],
