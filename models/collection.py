@@ -80,7 +80,13 @@ class CollectionIntake(CollectionBase):
     access_control_list: List[UUID] | None
 
 
-class Collection(CollectionBase, table=True):
+class CollectionBlueprint(CollectionBase):
+    id: UUID
+    sip: str | None
+    dip: str | None
+
+
+class Collection(CollectionBlueprint, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     owner_id: UUID | None = Field(default=None, foreign_key="user.id", nullable=False)
     sip: str | None = Field(default=None)
@@ -93,3 +99,31 @@ class Collection(CollectionBase, table=True):
 
     def is_deleted(self) -> bool:
         return any([event.type == EventTypes.Delete for event in self.events])
+
+    def created(self) -> datetime:
+        return min([event.timestamp for event in self.events if event.type == EventTypes.Create], default=datetime.min)
+
+    def last_access(self) -> datetime:
+        return max([event.timestamp for event in self.events if event.type == EventTypes.Access], default=datetime.max)
+
+
+class CollectionInfo(CollectionBase):
+    documents: List[Document]
+    events: List[CollectionEvent]
+    created: datetime
+    last_access: datetime
+
+    @staticmethod
+    def populate(collection: Collection) -> "CollectionInfo":
+        if collection.owner_id is None:
+            raise ValueError("Collection must have an owner")
+        self = CollectionInfo(
+            id=collection.id,
+            name=collection.name,
+            owner_id=collection.owner_id,
+            documents=collection.documents,
+            events=collection.events,
+            created=collection.created(),
+            last_access=collection.last_access(),
+        )
+        return self
