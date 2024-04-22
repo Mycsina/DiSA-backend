@@ -3,5 +3,4 @@ venv/
 .vscode/
 *.db
 !test.db
-.env
 .python-version
