@@ -15,7 +15,7 @@ from sqlmodel import Session, SQLModel
 import storage.collection as collections
 import storage.user as users
 from exceptions import BearerException, CMDFailure, IntegrityBreach
-from models.collection import Collection, SharedState
+from models.collection import Collection, CollectionInfo, SharedState
 from models.folder import FolderIntake
 from models.user import User, UserCMDCreate, UserCreate
 from security import (
@@ -65,6 +65,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/")
 async def root():
     return {"message": "Welcome to DiSA"}
@@ -97,6 +98,7 @@ async def get_all_collections(
     with Session(engine) as session:
         return collections.get_collections(session, user)
 
+
 @app.get("/collections/user")
 async def get_user_collections(
     user: Annotated[User, Depends(get_current_user)],
@@ -109,12 +111,13 @@ async def get_user_collections(
 async def get_collection(
     user: Annotated[User, Depends(get_current_user)],
     col_uuid: UUID,
-) -> Collection:
+) -> CollectionInfo:
     with Session(engine) as session:
         collection = collections.get_collection_by_id(session, col_uuid, user)
         if collection is None:
             raise HTTPException(status_code=404, detail="Collection not found")
-        return collection
+        result = CollectionInfo.populate(collection)
+        return result
 
 
 @app.get("/collections/hierarchy")
@@ -284,6 +287,7 @@ async def register_with_cmd(user: UserCMDCreate):
         token = create_access_token(data={"sub": str(db_user.id)})
         users.update_user_token(session, db_user, token)
         return {"message": f"User {user.mobile_key} created successfully", "token": token}
+
 
 # Changed login to post because get can't have a body
 @app.post("/users/login/")
