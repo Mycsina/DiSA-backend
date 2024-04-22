@@ -27,6 +27,15 @@ def get_collections(db: Session, user: User) -> Sequence[Collection]:
         register_event(db, col, user, EventTypes.Access)
     return collections
 
+def get_collections_by_user(db: Session, user: User) -> Sequence[Collection]:
+    statement = select(Collection).where(Collection.owner_id == user.id)
+    results = db.exec(statement)
+    collections = results.all()
+    collections = [col for col in collections if not col.is_deleted()]
+    for col in collections:
+        register_event(db, col, user, EventTypes.Access)
+    return collections
+
 
 def get_collection_by_id(db: Session, col_id: UUID, user: User) -> Collection | None:
     statement = select(Collection).where(Collection.id == col_id)

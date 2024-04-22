@@ -87,6 +87,13 @@ async def get_all_collections(
 ) -> Sequence[Collection]:
     with Session(engine) as session:
         return collections.get_collections(session, user)
+    
+@app.get("/collections/user")
+async def get_user_collections(
+    user: Annotated[User, Depends(get_current_user)],
+) -> Sequence[Collection]:
+    with Session(engine) as session:
+        return collections.get_collections_by_user(session, user)
 
 
 @app.get("/collections/info")
