@@ -80,17 +80,9 @@ class CollectionIntake(CollectionBase):
     access_control_list: List[UUID] | None
 
 
-class CollectionBlueprint(CollectionBase):
-    id: UUID
-    sip: str | None
-    dip: str | None
-
-
-class Collection(CollectionBlueprint, table=True):
+class Collection(CollectionBase, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     owner_id: UUID | None = Field(default=None, foreign_key="user.id", nullable=False)
-    sip: str | None = Field(default=None)
-    dip: str | None = Field(default=None)
 
     folder: Folder = Relationship(back_populates="collection")
     owner: "User" = Relationship(back_populates="collections")
@@ -101,10 +93,12 @@ class Collection(CollectionBlueprint, table=True):
         return any([event.type == EventTypes.Delete for event in self.events])
 
     def created(self) -> datetime:
-        return min([event.timestamp for event in self.events if event.type == EventTypes.Create], default=datetime.min)
+        return min([event.timestamp for event in self.events if event.type == EventTypes.Create])
 
     def last_access(self) -> datetime:
-        return max([event.timestamp for event in self.events if event.type == EventTypes.Access], default=datetime.max)
+        return max(
+            [event.timestamp for event in self.events if event.type == EventTypes.Access], default=self.created()
+        )
 
 
 class CollectionInfo(CollectionBase):

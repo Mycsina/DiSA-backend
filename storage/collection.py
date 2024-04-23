@@ -15,7 +15,7 @@ from models.user import User
 from security import verify_manifest
 from storage.event import register_event
 from storage.folder import create_folder, recreate_structure, walk_folder
-from storage.main import AM_TRANSFER_PATH, TEMP_FOLDER
+from storage.main import TEMP_FOLDER
 
 
 def get_collections(db: Session, user: User) -> Sequence[Collection]:
@@ -78,21 +78,11 @@ def create_collection(
         # We're dealing with a zipped folder
         f = io.BytesIO(data)
         with tarfile.open(fileobj=f) as tar:
-            tar.extractall(f"{AM_TRANSFER_PATH}/{TEMP_FOLDER}", filter="data")
+            tar.extractall(f"{TEMP_FOLDER}", filter="data")
         # Create the folder structure, walking through the extracted files
-        folder_name = f"{AM_TRANSFER_PATH}/{TEMP_FOLDER}/{name.split('.')[0]}"
+        folder_name = f"{TEMP_FOLDER}/{name.split('.')[0]}"
         root = walk_folder(folder_name, user)
         db_folder = create_folder(db, root, db_folder)
-        """
-        # Create the package in Archivematica
-        am_name = f"vagrant/main/{TEMP_FOLDER}/{name.split('.')[0]}"
-        transfer_id = create_am_package(am_name)
-        sip = sam.get_sip_from_transfer(transfer_id)
-        dip = sam.get_dip_from_sip(sip)
-        # Update the collection with the SIP and DIP UUIDs
-        collection.sip = sip
-        collection.dip = dip
-        """
 
     else:
         # We're dealing with a single document
@@ -100,19 +90,6 @@ def create_collection(
         doc = Document(name=name, size=len(data), folder_id=db_folder.id, collection_id=collection.id, hash=file_hash)
         register_event(db, doc, user, EventTypes.Create)
         db.add(doc)
-        """
-        # Create a temporary folder to store the document
-        folder_name = f"{AM_TRANSFER_PATH}/{TEMP_FOLDER}/{name}"
-        with open(f"{folder_name}/{name}", "wb") as f:
-            f.write(data)
-        # Create the package in Archivematica
-        transfer_id = create_am_package(folder_name)
-        sip = sam.get_sip_from_transfer(transfer_id)
-        dip = sam.get_dip_from_sip(sip)
-        # Update the collection with the SIP and DIP UUIDs
-        collection.sip = sip
-        collection.dip = dip
-        """
 
     db.add(collection)
     db.commit()
