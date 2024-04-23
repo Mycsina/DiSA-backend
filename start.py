@@ -27,6 +27,10 @@ from security import (
 )
 from storage.main import DB_URL, TEMP_FOLDER, TEST_MODE, engine
 
+# Make typechecker shut up
+if TEMP_FOLDER is None:
+    raise ValueError("TEMP_FOLDER must be set in the environment")
+
 
 def on_startup():
     if TEST_MODE:
