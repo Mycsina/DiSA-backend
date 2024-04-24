@@ -1,10 +1,9 @@
 import json
 import os
 
-from dotenv import load_dotenv
 import web3
-import os
 from cryptography.hazmat.primitives import hashes
+from dotenv import load_dotenv
 
 load_dotenv()
 
