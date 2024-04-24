@@ -6,14 +6,14 @@ from sqlmodel import SQLModel, create_engine
 load_dotenv(override=True)
 
 
-def must_getenv(var_name: str, strict: bool = False) -> str | None:
+def must_getenv(var_name: str) -> str:
     value = os.getenv(var_name)
-    if value is None and strict is True:
+    if value is None:
         raise ValueError(f"{var_name} must be set in the environment")
     return value
 
 
-TEMP_FOLDER = must_getenv("TEMP_FOLDER", True)
+TEMP_FOLDER = must_getenv("TEMP_FOLDER")
 tmp = os.getenv("TEST_MODE")
 TEST_MODE = False
 if tmp is not None:
@@ -26,6 +26,9 @@ if TEST_MODE:
 else:
     sqlite_file_name = "database.db"
     DB_URL = f"sqlite:///storage/{sqlite_file_name}"
+
+PAPERLESS_URL = must_getenv("PAPERLESS_URL")
+PAPERLESS_TOKEN = must_getenv("PAPERLESS_TOKEN")
 
 
 engine = create_engine(DB_URL, connect_args={"check_same_thread": False}, echo=False)

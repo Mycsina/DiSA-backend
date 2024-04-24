@@ -1,19 +1,24 @@
 import asyncio
-from pypaperless import Paperless
-from pypaperless.models.common import MatchingAlgorithmType
 
-
-paperless = Paperless("http://localhost:8001", "3e80c1eec3a65b72e3a4c86292301fde363ffd7a")
+from paperless import create_correspondent, create_document, create_tag
 
 
 async def main():
-    async with paperless:
-
-        draft = paperless.documents.draft(
-            document=b"1010",
-        )
-        new_pk = await draft.save()
-        print(new_pk)
+    tag = await create_tag(
+        name="Test Tag",
+    )
+    print(tag)
+    correspondent = await create_correspondent(
+        name="Test Correspondent",
+    )
+    print(correspondent)
+    document = await create_document(
+        title="Test Document",
+        document=b"Test Document",
+        correspondent=correspondent,
+        tags=tag,
+    )
+    print(document)
 
 
 asyncio.run(main())

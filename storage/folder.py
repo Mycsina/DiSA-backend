@@ -5,15 +5,15 @@ from sqlmodel import Session
 
 from models.collection import Document, DocumentIntake
 from models.event import EventTypes
-from models.folder import Folder, FolderIntake
+from models.folder import Folder, FolderIntake, FolderOut
 from models.user import User
 
 from storage.event import register_event
 
 
-def recreate_structure(db: Session, root: Folder, user: User) -> FolderIntake:
+def recreate_structure(db: Session, root: Folder, user: User) -> FolderOut:
     """Recreate the FolderIntake structure from the structure in the database."""
-    root_folder = FolderIntake(name=root.name)
+    root_folder = FolderOut(name=root.name)
     for child in root.sub_folders:
         root_folder.children.append(recreate_structure(db, child, user))
     for doc in root.documents:
@@ -31,6 +31,7 @@ def recreate_structure(db: Session, root: Folder, user: User) -> FolderIntake:
     return root_folder
 
 
+# TODO: saving all file content in memory is not a good idea
 def walk_folder(root: str, user: User) -> FolderIntake:
     """Walk through the given root path and create a tree of FolderIntake and DocumentIntake objects."""
     root_name = os.path.basename(root)
@@ -63,7 +64,7 @@ def walk_folder(root: str, user: User) -> FolderIntake:
     return root_folder
 
 
-def create_folder(db: Session, root: FolderIntake, db_root: Folder) -> Folder:
+def create_folder(db: Session, root: FolderIntake, db_root: Folder):
     """Creates Folder and Document structures in the database from the given root FolderIntake object."""
     root_id = db_root.id
     if root_id is None:
@@ -91,4 +92,3 @@ def create_folder(db: Session, root: FolderIntake, db_root: Folder) -> Folder:
             parent.documents.append(db_child)
             db.add(db_child)
     db.commit()
-    return db_root
