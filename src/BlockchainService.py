@@ -1,7 +1,9 @@
 import json
 import os
 
+from dotenv import load_dotenv
 import web3
+import os
 from cryptography.hazmat.primitives import hashes
 from dotenv import load_dotenv
 
@@ -14,11 +16,11 @@ private_key = os.environ.get("PRIVATE_KEY")
 class BlockchainService:
     def __init__(self, abi_location="resources/abi.json"):
         with open(abi_location) as f:
-            abi = json.load(f)
+            abi=json.load(f)
 
-        self.contract = web3.eth.contract(abi=abi, address="0x9e5c6b3d16411736c068026fc212e0b413dce243")
-        self.w3 = web3.Web3(web3.Web3.HTTPProvider("https://rpc-mumbai.maticvigil.com"))
-        self.account = self.w3.eth.account.from_key(private_key)
+        self.contract=web3.eth.contract(abi=abi, address="0x9e5c6b3d16411736c068026fc212e0b413dce243")
+        self.w3=web3.Web3(web3.Web3.HTTPProvider("https://rpc-mumbai.maticvigil.com"))
+        self.account=self.w3.eth.account.from_key(private_key)
 
     def to_hash(self, manifest: bytes) -> bytes:
         """
@@ -29,9 +31,6 @@ class BlockchainService:
         digest.update(manifest)
         return digest.finalize()
 
-    def save_contract(self, originalHash: bytes, processedHash: bytes, url: int):
-        function_name = "storeCertificate"
-        function_args = [originalHash, processedHash, url]
 
     def save_contract(self, originalHash, processedHash, url):
         private_key = os.environ.get("PRIVATE_KEY")
@@ -49,6 +48,7 @@ class BlockchainService:
         signed_txn = self.w3.eth.account.sign_transaction(txn, private_key)
         tx_hash = self.w3.eth.send_transaction(signed_txn)
         return tx_hash
+
 
     def get_transaction_receipt(self, tx_hash: str, timeout=120) -> dict:
         """
