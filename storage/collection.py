@@ -15,11 +15,21 @@ from models.user import User
 from security import verify_manifest
 from storage.event import register_event
 from storage.folder import create_folder, recreate_structure, walk_folder
-from storage.main import AM_TRANSFER_PATH, TEMP_FOLDER, create_am_package, sam
+from storage.main import AM_TRANSFER_PATH, TEMP_FOLDER
 
 
 def get_collections(db: Session, user: User) -> Sequence[Collection]:
     statement = select(Collection)
+    results = db.exec(statement)
+    collections = results.all()
+    collections = [col for col in collections if not col.is_deleted()]
+    for col in collections:
+        register_event(db, col, user, EventTypes.Access)
+    return collections
+
+
+def get_collections_by_user(db: Session, user: User) -> Sequence[Collection]:
+    statement = select(Collection).where(Collection.owner_id == user.id)
     results = db.exec(statement)
     collections = results.all()
     collections = [col for col in collections if not col.is_deleted()]

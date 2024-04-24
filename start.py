@@ -8,13 +8,14 @@ from uuid import UUID
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, SQLModel
 
 import storage.collection as collections
 import storage.user as users
 from exceptions import BearerException, CMDFailure, IntegrityBreach
-from models.collection import Collection, SharedState
+from models.collection import Collection, CollectionInfo, SharedState
 from models.folder import FolderIntake
 from models.user import User, UserCMDCreate, UserCreate
 from security import (
@@ -55,6 +56,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# TODO: Make this dev only
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.get("/")
 async def root():
@@ -89,16 +99,25 @@ async def get_all_collections(
         return collections.get_collections(session, user)
 
 
+@app.get("/collections/user")
+async def get_user_collections(
+    user: Annotated[User, Depends(get_current_user)],
+) -> Sequence[Collection]:
+    with Session(engine) as session:
+        return collections.get_collections_by_user(session, user)
+
+
 @app.get("/collections/info")
 async def get_collection(
     user: Annotated[User, Depends(get_current_user)],
     col_uuid: UUID,
-) -> Collection:
+) -> CollectionInfo:
     with Session(engine) as session:
         collection = collections.get_collection_by_id(session, col_uuid, user)
         if collection is None:
             raise HTTPException(status_code=404, detail="Collection not found")
-        return collection
+        result = CollectionInfo.populate(collection)
+        return result
 
 
 @app.get("/collections/hierarchy")
@@ -270,7 +289,8 @@ async def register_with_cmd(user: UserCMDCreate):
         return {"message": f"User {user.mobile_key} created successfully", "token": token}
 
 
-@app.get("/users/login/")
+# Changed login to post because get can't have a body
+@app.post("/users/login/")
 async def login_with_user_password(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> Token:

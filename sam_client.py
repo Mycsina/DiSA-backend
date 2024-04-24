@@ -16,7 +16,7 @@ class SAMClient:
         """
         self.super = amclient.AMClient()
         self.super.am_url = am_url
-        self.super.ss_url = ss_url if ss_url else am_url + ":8000"
+        self.super.ss_url = ss_url #if ss_url else am_url + ":8000" #TODO Get all .env variables again before uncommenting
 
     @no_type_check
     def setup_login(self, user_name: str, api_key: str) -> "SAMClient":
