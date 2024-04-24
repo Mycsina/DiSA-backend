@@ -222,7 +222,7 @@ async def search_documents(
 # TODO - test this
 # TODO - ability to filter documents by type, size or owner
 # filter documents by type, size or owner
-@app.get("/documents/filter")
+@app.get("/collections/{collection_uuid}/filter")
 async def filter_documents(
     user: Annotated[User, Depends(get_current_user)],
     col_uuid: UUID,
