@@ -293,7 +293,6 @@ async def register_with_cmd(user: UserCMDCreate):
         return {"message": f"User {user.mobile_key} created successfully", "token": token}
 
 
-# Changed login to post because get can't have a body
 @app.post("/users/login/")
 async def login_with_user_password(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
@@ -315,6 +314,6 @@ async def login_with_cmd(id_token: str) -> Token:
         user = users.get_user_by_nic(session, nic)
         if user is None:
             raise CMDFailure()
-        access_token = create_access_token(data={"sub": user.id})
+        access_token = create_access_token(data={"sub": str(user.id)})
         users.update_user_token(session, user, access_token)
         return Token(access_token=access_token, token_type="Bearer")

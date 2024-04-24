@@ -48,6 +48,12 @@ def get_user_by_username(db: Session, username: str) -> User | None:
     return results.first()
 
 
+def get_user_by_email(db: Session, email: str) -> User | None:
+    statement = select(User).where(User.email == email)
+    results = db.exec(statement)
+    return results.first()
+
+
 def get_user_by_nic(db: Session, nic: str) -> User | None:
     statement = select(User).where(User.nic == nic)
     results = db.exec(statement)

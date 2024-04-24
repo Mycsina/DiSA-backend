@@ -13,7 +13,7 @@ from sqlmodel import Session
 from exceptions import BearerException
 from models.user import User
 from storage.main import engine
-from storage.user import get_user_by_id, get_user_by_username
+from storage.user import get_user_by_id, get_user_by_email
 
 load_dotenv()
 
@@ -43,8 +43,8 @@ def password_verify(password: str, hashed_password: str):
     return pwd_context.verify(password, hashed_password)
 
 
-def verify_user(db: Session, username: str, password: str) -> User | None:
-    user = get_user_by_username(db, username)
+def verify_user(db: Session, email: str, password: str) -> User | None:
+    user = get_user_by_email(db, email)
     if not user:
         return
     if not user.password:
@@ -88,7 +88,7 @@ def verify_manifest(manifest_hash: str, transaction_address: str) -> bool:
     verifies whether the manifest_hash matches the hash in the blockchain
     Note: it is assumed manifest_hash and transaction_address are both hexstrings (start with 'Ox')
     """
-    blockChainService=BlockchainService()
-    receipt=blockChainService.get_transaction_receipt(transaction_address)
-    storedHash=blockChainService.get_manifest_hash(receipt)
-    return manifest_hash==storedHash
+    blockChainService = BlockchainService()
+    receipt = blockChainService.get_transaction_receipt(transaction_address)
+    storedHash = blockChainService.get_manifest_hash(receipt)
+    return manifest_hash == storedHash
