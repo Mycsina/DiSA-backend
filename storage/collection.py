@@ -69,7 +69,6 @@ def create_collection(
     db_folder = Folder(name=name)
     register_event(db, collection, user, EventTypes.Create)
     collection.owner = user
-    collection.folder = db_folder
 
     if not verify_manifest(manifest_hash, transaction_address):
         raise AssertionError("Manifest hash does not match the transaction address")
@@ -91,6 +90,7 @@ def create_collection(
         register_event(db, doc, user, EventTypes.Create)
         db.add(doc)
 
+    collection.folder = db_folder
     db.add(collection)
     db.commit()
     return collection
