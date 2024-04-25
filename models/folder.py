@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
-    from models.collection import Collection, Document
+    from models.collection import Collection, Document, DocumentIntake
 
 
 class FolderBase(SQLModel):
@@ -13,7 +13,7 @@ class FolderBase(SQLModel):
 
 
 class FolderIntake(FolderBase):
-    children: list[Union["Document", "FolderIntake"]] = []
+    children: list[Union["DocumentIntake", "FolderIntake"]] = []
 
     def __str__(self):
         """Return tabulated string representation of the folder structure."""

@@ -7,6 +7,7 @@ from uuid import UUID
 
 from sqlmodel import Session, select
 
+import storage.paperless as ppl
 from models.collection import Collection, Document, SharedState
 from models.event import DocumentEvent, EventTypes
 from models.folder import Folder, FolderIntake
@@ -55,7 +56,7 @@ def get_document_by_id(db: Session, doc_id: UUID) -> Document | None:
     return document
 
 
-def create_collection(
+async def create_collection(
     db: Session,
     name: str,
     data: bytes,
@@ -65,38 +66,49 @@ def create_collection(
     transaction_address: str,
 ) -> Collection:
 
-    collection = Collection(name=name, share_state=share_state)
-    db_folder = Folder(name=name)
-    register_event(db, collection, user, EventTypes.Create)
-    collection.owner = user
-    collection.folder = db_folder
-
+    # Check manifest hash against the blockchain event
     if not verify_manifest(manifest_hash, transaction_address):
         raise AssertionError("Manifest hash does not match the transaction address")
 
+    # Create the collection in the database
+    collection = Collection(name=name, share_state=share_state)
+    db_folder = Folder(name=name)
+    collection.owner = user
+    collection.folder = db_folder
+    register_event(db, collection, user, EventTypes.Create)
+
+    # Create the collection in Paperless-ngx
+    await ppl.create_collection(db, collection, name=name)
+
+    # We're dealing with a zipped folder
     if name.split(".")[-2].lower() == "tar":
-        # We're dealing with a zipped folder
         f = io.BytesIO(data)
         with tarfile.open(fileobj=f) as tar:
             tar.extractall(f"{TEMP_FOLDER}", filter="data")
         # Create the folder structure, walking through the extracted files
         folder_name = f"{TEMP_FOLDER}/{name.split('.')[0]}"
         root = walk_folder(folder_name, user)
-        db_folder = create_folder(db, root, db_folder)
+        # Create the folder structure in the database
+        mappings = create_folder(db, root, db_folder)
+        # Ingest the documents into Paperless-ngx
+        await ppl.upload_folder(db, mappings, collection, user)
 
+    # We're dealing with a single document
     else:
-        # We're dealing with a single document
+        # Create the document in the database
         file_hash = hashlib.sha256(data).hexdigest()
         doc = Document(name=name, size=len(data), folder_id=db_folder.id, collection_id=collection.id, hash=file_hash)
         register_event(db, doc, user, EventTypes.Create)
         db.add(doc)
+        # Create the document in Paperless-ngx
+        await ppl.create_single_document(db, data, doc, collection, user, name=name, data=data)
 
     db.add(collection)
     db.commit()
     return collection
 
 
-def get_collection_hierarchy(db: Session, col: Collection, user: User) -> FolderIntake | None:
+def get_collection_hierarchy(db: Session, col: Collection, user: User) -> FolderIntake:
     structure = recreate_structure(db, col.folder, user)
     return structure
 

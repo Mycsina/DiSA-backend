@@ -7,6 +7,7 @@ from sqlmodel import Field, Relationship, SQLModel
 
 from models.event import CollectionEvent, DocumentEvent, EventTypes
 from models.folder import Folder, FolderIntake
+from models.paperless import CollectionPaperless, DocumentPaperless
 from models.update import Update
 from models.user import User
 
@@ -43,6 +44,7 @@ class Document(DocumentBase, table=True):
     next: Optional["Update"] = Relationship(
         back_populates="old", sa_relationship_kwargs={"foreign_keys": "Update.previous_id"}
     )
+    paperless: Optional["DocumentPaperless"] = Relationship(back_populates="document")
 
     def is_deleted(self) -> bool:
         return any([event.type == EventTypes.Delete for event in self.events])
@@ -54,6 +56,23 @@ class Document(DocumentBase, table=True):
 class DocumentIntake(DocumentBase):
     content: bytes
     parent_folder: FolderIntake
+
+
+class EDocumentIntake(DocumentIntake):
+    doc_id: UUID
+
+    @staticmethod
+    def create(doc_id: UUID, intake: DocumentIntake) -> "EDocumentIntake":
+        doc = EDocumentIntake(
+            doc_id=doc_id,
+            name=intake.name,
+            size=intake.size,
+            access_from_date=intake.access_from_date,
+            hash=intake.hash,
+            content=intake.content,
+            parent_folder=intake.parent_folder,
+        )
+        return doc
 
 
 class CollectionBase(SQLModel):
@@ -88,6 +107,7 @@ class Collection(CollectionBase, table=True):
     owner: "User" = Relationship(back_populates="collections")
     documents: list["Document"] = Relationship(back_populates="collection")
     events: list["CollectionEvent"] = Relationship(back_populates="collection")
+    paperless: Optional["CollectionPaperless"] = Relationship(back_populates="collection")
 
     def is_deleted(self) -> bool:
         return any([event.type == EventTypes.Delete for event in self.events])
