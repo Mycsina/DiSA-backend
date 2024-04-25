@@ -45,10 +45,6 @@ class FolderIntake(FolderBase):
                 yield from path.tree(prefix + extension)
 
 
-class FolderOut(FolderBase):
-    children: list[Union["Document", "FolderOut"]] = []
-
-
 class Folder(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     name: str

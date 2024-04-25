@@ -3,17 +3,16 @@ import os
 
 from sqlmodel import Session
 
-from models.collection import Document, DocumentIntake
+from models.collection import Document, DocumentIntake, EDocumentIntake
 from models.event import EventTypes
-from models.folder import Folder, FolderIntake, FolderOut
+from models.folder import Folder, FolderIntake
 from models.user import User
-
 from storage.event import register_event
 
 
-def recreate_structure(db: Session, root: Folder, user: User) -> FolderOut:
+def recreate_structure(db: Session, root: Folder, user: User) -> FolderIntake:
     """Recreate the FolderIntake structure from the structure in the database."""
-    root_folder = FolderOut(name=root.name)
+    root_folder = FolderIntake(name=root.name)
     for child in root.sub_folders:
         root_folder.children.append(recreate_structure(db, child, user))
     for doc in root.documents:
@@ -27,7 +26,7 @@ def recreate_structure(db: Session, root: Folder, user: User) -> FolderOut:
             doc = doc.next.new
         register_event(db, doc, user, EventTypes.Access)
         if not deleted:
-            root_folder.children.append(doc)
+            root_folder.children.append(doc)  # type: ignore
     return root_folder
 
 
@@ -64,13 +63,17 @@ def walk_folder(root: str, user: User) -> FolderIntake:
     return root_folder
 
 
-def create_folder(db: Session, root: FolderIntake, db_root: Folder):
-    """Creates Folder and Document structures in the database from the given root FolderIntake object."""
+def create_folder(db: Session, root: FolderIntake, db_root: Folder) -> list[EDocumentIntake]:
+    """
+    Creates Folder and Document structures in the database from the given root FolderIntake object.
+    Returns a mapping of the DocumentIntake objects to their corresponding Document objects in the database.
+    """
     root_id = db_root.id
     if root_id is None:
         raise ValueError("Could not create root folder")
     children = root.children
     parents = [db_root] * len(children)
+    mapping: list[EDocumentIntake] = []
     while len(children) > 0:
         child = children.pop()
         parent = parents.pop()
@@ -88,7 +91,9 @@ def create_folder(db: Session, root: FolderIntake, db_root: Folder):
                 collection_id=db_root.collection.id,
                 hash=child.hash,
             )
+            mapping.append(EDocumentIntake.create(db_child.id, child))
             register_event(db, db_child, db_root.collection.owner, EventTypes.Create)
             parent.documents.append(db_child)
             db.add(db_child)
     db.commit()
+    return mapping

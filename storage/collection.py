@@ -7,16 +7,16 @@ from uuid import UUID
 
 from sqlmodel import Session, select
 
+import storage.paperless as ppl
 from models.collection import Collection, Document, SharedState
 from models.event import DocumentEvent, EventTypes
-from models.folder import Folder, FolderOut
+from models.folder import Folder, FolderIntake
 from models.update import Update
 from models.user import User
 from security import verify_manifest
 from storage.event import register_event
 from storage.folder import create_folder, recreate_structure, walk_folder
 from storage.main import TEMP_FOLDER
-import storage.paperless as ppl
 
 
 def get_collections(db: Session, user: User) -> Sequence[Collection]:
@@ -88,10 +88,10 @@ async def create_collection(
         # Create the folder structure, walking through the extracted files
         folder_name = f"{TEMP_FOLDER}/{name.split('.')[0]}"
         root = walk_folder(folder_name, user)
-        # Ingest the documents into Paperless-ngx
-        await ppl.upload_folder(db, root, collection, user)
         # Create the folder structure in the database
-        create_folder(db, root, db_folder)
+        mappings = create_folder(db, root, db_folder)
+        # Ingest the documents into Paperless-ngx
+        await ppl.upload_folder(db, mappings, collection, user)
 
     # We're dealing with a single document
     else:
@@ -108,7 +108,7 @@ async def create_collection(
     return collection
 
 
-def get_collection_hierarchy(db: Session, col: Collection, user: User) -> FolderOut:
+def get_collection_hierarchy(db: Session, col: Collection, user: User) -> FolderIntake:
     structure = recreate_structure(db, col.folder, user)
     return structure
 

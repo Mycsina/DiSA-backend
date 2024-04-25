@@ -58,6 +58,23 @@ class DocumentIntake(DocumentBase):
     parent_folder: FolderIntake
 
 
+class EDocumentIntake(DocumentIntake):
+    doc_id: UUID
+
+    @staticmethod
+    def create(doc_id: UUID, intake: DocumentIntake) -> "EDocumentIntake":
+        doc = EDocumentIntake(
+            doc_id=doc_id,
+            name=intake.name,
+            size=intake.size,
+            access_from_date=intake.access_from_date,
+            hash=intake.hash,
+            content=intake.content,
+            parent_folder=intake.parent_folder,
+        )
+        return doc
+
+
 class CollectionBase(SQLModel):
     id: UUID
     name: str

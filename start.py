@@ -12,11 +12,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, SQLModel
 
+from models.folder import FolderIntake
 import storage.collection as collections
 import storage.user as users
 from exceptions import BearerException, CMDFailure, IntegrityBreach
 from models.collection import Collection, CollectionInfo, SharedState
-from models.folder import FolderIntake
 from models.user import User, UserCMDCreate, UserCreate
 from security import (
     Token,
@@ -26,6 +26,11 @@ from security import (
     verify_user,
 )
 from storage.main import DB_URL, TEMP_FOLDER, TEST_MODE, engine
+
+
+# TODO: find out why paperless parsers are not working
+# TODO: implement logging
+# TODO: implement tests
 
 
 def on_startup():

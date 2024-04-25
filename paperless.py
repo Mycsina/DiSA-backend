@@ -1,7 +1,5 @@
-from typing import Any
 from pypaperless import Paperless
 from pypaperless.models.common import MatchingAlgorithmType
-from pypaperless.exceptions import JsonResponseWithError
 
 from storage.main import PAPERLESS_TOKEN, PAPERLESS_URL
 
@@ -9,19 +7,6 @@ from storage.main import PAPERLESS_TOKEN, PAPERLESS_URL
 def spawn_paperless():
     # TODO: suppress warning during initialization
     return Paperless(PAPERLESS_URL, PAPERLESS_TOKEN)
-
-
-async def save_draft(name: str, draft: Any) -> str | int:
-    try:
-        new_id = await draft.save()
-        print(new_id)
-    except JsonResponseWithError as e:
-        if "unique constraint" in str(e):
-            raise ValueError(f"{name} with this name already exists")
-    except Exception as e:
-        raise ValueError(f"Failed to create {name}: {e}")
-    finally:
-        return new_id
 
 
 async def create_document(**kwargs) -> str:
@@ -42,8 +27,7 @@ async def create_document(**kwargs) -> str:
     paperless = spawn_paperless()
     async with paperless:
         draft = paperless.documents.draft(**kwargs)
-        new_id = await save_draft("Document", draft)
-        print(new_id)
+        new_id = await draft.save()
         if type(new_id) is not str:
             raise ValueError("ID string wasn't returned")
         return new_id
@@ -72,7 +56,7 @@ async def create_correspondent(**kwargs) -> int:
     paperless = spawn_paperless()
     async with paperless:
         draft = paperless.correspondents.draft(**data)
-        new_id = await save_draft("Correspondent", draft)
+        new_id = await draft.save()
         if type(new_id) is not int:
             raise ValueError("ID wasn't returned")
         return new_id
@@ -116,7 +100,7 @@ async def create_tag(**kwargs) -> int:
     paperless = spawn_paperless()
     async with paperless:
         draft = paperless.tags.draft(**kwargs)
-        new_id = await save_draft("Tag", draft)
+        new_id = await draft.save()
         if type(new_id) is not int:
             raise ValueError("ID wasn't returned")
         return new_id
