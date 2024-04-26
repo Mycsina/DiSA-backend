@@ -8,12 +8,12 @@ from uuid import UUID
 from sqlmodel import Session, select
 
 import storage.paperless as ppl
-from models.collection import Collection, Document, SharedState
+from models.collection import Collection, CollectionPermission, Document, Permission, SharedState
 from models.event import DocumentEvent, EventTypes
 from models.folder import Folder, FolderIntake
 from models.update import Update
 from models.user import User
-from security import verify_manifest
+from utils.security import verify_manifest
 from storage.event import register_event
 from storage.folder import (
     create_folder,
@@ -28,7 +28,10 @@ def get_collections(db: Session, user: User) -> Sequence[Collection]:
     statement = select(Collection)
     results = db.exec(statement)
     collections = results.all()
+    # Remove deleted collections
     collections = [col for col in collections if not col.is_deleted()]
+    # Verify user can view these collections
+    collections = [col for col in collections if col.can_view(user)]
     for col in collections:
         register_event(db, col, user, EventTypes.Access)
     return collections
@@ -38,6 +41,7 @@ def get_collections_by_user(db: Session, user: User) -> Sequence[Collection]:
     statement = select(Collection).where(Collection.owner_id == user.id)
     results = db.exec(statement)
     collections = results.all()
+    # Remove deleted collections
     collections = [col for col in collections if not col.is_deleted()]
     for col in collections:
         register_event(db, col, user, EventTypes.Access)
@@ -189,3 +193,21 @@ async def download_collection(db: Session, col: Collection, user: User) -> Folde
     structure = recreate_structure(db, col.folder, user)
     structure = await populate_documents(db, structure)
     return structure
+
+
+def allow_read(db: Session, user: User, col: Collection):
+    perm = CollectionPermission(user_id=user.id, collection_id=col.id, permission=Permission.read)
+    db.add(perm)
+    db.commit()
+
+
+def allow_write(db: Session, user: User, col: Collection):
+    perm = CollectionPermission(user_id=user.id, collection_id=col.id, permission=Permission.write)
+    db.add(perm)
+    db.commit()
+
+
+def allow_view(db: Session, user: User, col: Collection):
+    perm = CollectionPermission(user_id=user.id, collection_id=col.id, permission=Permission.view)
+    db.add(perm)
+    db.commit()

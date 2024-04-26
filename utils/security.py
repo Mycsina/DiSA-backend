@@ -9,8 +9,8 @@ from passlib.context import CryptContext
 from pydantic import BaseModel
 from sqlmodel import Session
 
-from BlockchainService import BlockchainService
-from exceptions import BearerException
+from utils.BlockchainService import BlockchainService
+from utils.exceptions import BearerException
 from models.user import User
 from storage.main import engine
 from storage.user import get_user_by_email, get_user_by_id

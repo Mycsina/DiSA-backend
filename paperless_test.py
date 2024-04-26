@@ -1,6 +1,6 @@
 import asyncio
 
-from paperless import create_correspondent, create_document, create_tag
+from utils.paperless import create_correspondent, create_document, create_tag
 
 
 async def main():

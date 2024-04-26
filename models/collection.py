@@ -19,6 +19,12 @@ class SharedState(str, Enum):
     restricted = "restricted"
 
 
+class Permission(str, Enum):
+    view = "view"
+    read = "read"
+    write = "write"
+
+
 class DocumentBase(SQLModel):
     name: str
     size: int
@@ -94,11 +100,6 @@ class CollectionBase(SQLModel):
             yield item
 
 
-class CollectionIntake(CollectionBase):
-    structure: Folder
-    access_control_list: List[UUID] | None
-
-
 class Collection(CollectionBase, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     owner_id: UUID | None = Field(default=None, foreign_key="user.id", nullable=False)
@@ -108,6 +109,7 @@ class Collection(CollectionBase, table=True):
     documents: list["Document"] = Relationship(back_populates="collection")
     events: list["CollectionEvent"] = Relationship(back_populates="collection")
     paperless: Optional["CollectionPaperless"] = Relationship(back_populates="collection")
+    permissions: List["CollectionPermission"] = Relationship(back_populates="collection")
 
     def is_deleted(self) -> bool:
         return any([event.type == EventTypes.Delete for event in self.events])
@@ -119,6 +121,33 @@ class Collection(CollectionBase, table=True):
         return max(
             [event.timestamp for event in self.events if event.type == EventTypes.Access], default=self.created()
         )
+
+    def can_read(self, user: User) -> bool:
+        return (
+            any([perm.permission == Permission.read for perm in self.permissions if perm.user_id == user.id])
+            or user.id == self.owner_id
+        )
+
+    def can_write(self, user: User) -> bool:
+        return (
+            any([perm.permission == Permission.write for perm in self.permissions if perm.user_id == user.id])
+            or user.id == self.owner_id
+        )
+
+    def can_view(self, user: User) -> bool:
+        return (
+            any([perm.permission == Permission.view for perm in self.permissions if perm.user_id == user.id])
+            or user.id == self.owner_id
+        )
+
+
+class CollectionPermission(SQLModel, table=True):
+    collection_id: UUID = Field(primary_key=True, foreign_key="collection.id")
+    user_id: UUID = Field(primary_key=True, foreign_key="user.id")
+    permission: Permission
+
+    collection: Collection = Relationship(back_populates="permissions")
+    user: User = Relationship(back_populates="permissions")
 
 
 class CollectionInfo(CollectionBase):

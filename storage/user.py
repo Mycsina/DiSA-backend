@@ -4,8 +4,8 @@ import requests
 from sqlmodel import Session, select
 
 from models.user import User, UserCMDCreate, UserCreate
-from paperless import create_correspondent
-from exceptions import CMDFailure
+from utils.paperless import create_correspondent
+from utils.exceptions import CMDFailure
 
 
 async def create_user(db: Session, user: UserCreate) -> User:
