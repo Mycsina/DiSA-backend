@@ -6,11 +6,12 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlmodel import Session
 
 import storage.collection as collections
-from models.collection import Collection, CollectionInfo, SharedState
+import storage.user as users
+from models.collection import Collection, CollectionInfo, Permission, SharedState
 from models.folder import FolderIntake
 from models.user import User
-from utils.security import get_current_user
 from storage.main import engine
+from utils.security import get_current_user
 
 collections_router = APIRouter(
     prefix="/collections",
@@ -96,7 +97,7 @@ async def get_collection_hierarchy(
         return folder
 
 
-@collections_router.delete("/collections/")
+@collections_router.delete("/")
 async def delete_collection(
     user: Annotated[User, Depends(get_current_user)],
     col_uuid: UUID,
@@ -111,7 +112,33 @@ async def delete_collection(
         return {"message": "Collection deleted successfully"}
 
 
-# TODO - test this
+# TODO: test this
+@collections_router.post("/permissions")
+async def add_permission(
+    user: Annotated[User, Depends(get_current_user)],
+    col_uuid: UUID,
+    user_uuid: UUID,
+    permission: Permission,
+):
+    with Session(engine) as session:
+        col = collections.get_collection_by_id(session, col_uuid, user)
+        if col is None:
+            raise HTTPException(status_code=404, detail="Collection not found")
+        if not col.can_write(user):
+            raise HTTPException(status_code=403, detail="You do not have permission to write to this collection")
+        db_user = users.get_user_by_id(session, user_uuid)
+        if db_user is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        match permission:
+            case Permission.read:
+                collections.allow_read(session, db_user, col)
+            case Permission.write:
+                collections.allow_write(session, db_user, col)
+            case Permission.view:
+                collections.allow_view(session, db_user, col)
+        return {"message": "Permission added successfully"}
+
+
 # TODO - ability to filter documents by type, size or owner
 # filter documents by type, size or owner
 @collections_router.get("/{collection_uuid}/filter")
