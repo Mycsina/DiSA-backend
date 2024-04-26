@@ -12,7 +12,7 @@ class DocumentPaperless(SQLModel, table=True):
     A document is represented by a document in Paperless-ngx.
     """
 
-    paperless_id: UUID = Field(primary_key=True)
+    paperless_id: int = Field(primary_key=True)
     doc_id: UUID | None = Field(default=None, index=True, foreign_key="document.id")
 
     document: "Document" = Relationship(back_populates="paperless")

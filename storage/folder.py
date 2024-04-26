@@ -8,6 +8,7 @@ from models.event import EventTypes
 from models.folder import Folder, FolderIntake
 from models.user import User
 from storage.event import register_event
+from storage.paperless import download_document
 
 
 def recreate_structure(db: Session, root: Folder, user: User) -> FolderIntake:
@@ -26,8 +27,27 @@ def recreate_structure(db: Session, root: Folder, user: User) -> FolderIntake:
             doc = doc.next.new
         register_event(db, doc, user, EventTypes.Access)
         if not deleted:
+            # TODO: This is the worst way to do this, literally wrong object type but it works
             root_folder.children.append(doc)  # type: ignore
     return root_folder
+
+
+async def populate_documents(db: Session, root: FolderIntake) -> FolderIntake:
+    """
+    Populate DocumentIntake objects with their actual content.
+    """
+    new_root = FolderIntake(name=root.name)
+    for child in root.children:
+        if isinstance(child, FolderIntake):
+            folder = await populate_documents(db, child)
+            new_root.children.append(folder)
+        # TODO: Tied to the wrong implementation above, but might as well take advantage of it
+        elif isinstance(child, Document):
+            new_doc = await download_document(db, child)
+            new_root.children.append(new_doc)
+        elif isinstance(child, DocumentIntake):
+            raise TypeError("Please only call this with a FolderIntake from recreate_structure")
+    return new_root
 
 
 # TODO: saving all file content in memory is not a good idea

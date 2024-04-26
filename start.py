@@ -7,16 +7,16 @@ from typing import Annotated, Sequence
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
-from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, SQLModel
 
-from models.folder import FolderIntake
 import storage.collection as collections
 import storage.user as users
 from exceptions import BearerException, CMDFailure, IntegrityBreach
 from models.collection import Collection, CollectionInfo, SharedState
+from models.folder import FolderIntake
 from models.user import User, UserCMDCreate, UserCreate
 from security import (
     Token,
@@ -26,11 +26,6 @@ from security import (
     verify_user,
 )
 from storage.main import DB_URL, TEMP_FOLDER, TEST_MODE, engine
-
-
-# TODO: find out why paperless parsers are not working
-# TODO: implement logging
-# TODO: implement tests
 
 
 def on_startup():
@@ -94,6 +89,20 @@ async def create_collection(
         )
 
         return {"message": "Collection created successfully", "uuid": collection.id}
+
+
+@app.get("/collections/download")
+async def download_collection(
+    user: Annotated[User, Depends(get_current_user)],
+    col_uuid: UUID,
+) -> FolderIntake:
+    with Session(engine) as session:
+        col = collections.get_collection_by_id(session, col_uuid, user)
+        if col is None:
+            raise HTTPException(status_code=404, detail="Collection not found")
+        if col.owner != user:
+            raise HTTPException(status_code=403, detail="You are not the owner of this Collection")
+        return await collections.download_collection(session, col, user)
 
 
 @app.get("/collections/")

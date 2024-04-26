@@ -55,7 +55,7 @@ class Document(DocumentBase, table=True):
 
 class DocumentIntake(DocumentBase):
     content: bytes
-    parent_folder: FolderIntake
+    parent_folder: FolderIntake | None
 
 
 class EDocumentIntake(DocumentIntake):

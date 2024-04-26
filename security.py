@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from os import getenv
 
-from BlockchainService import BlockchainService
 from dotenv import load_dotenv
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
@@ -10,10 +9,11 @@ from passlib.context import CryptContext
 from pydantic import BaseModel
 from sqlmodel import Session
 
+from BlockchainService import BlockchainService
 from exceptions import BearerException
 from models.user import User
 from storage.main import engine
-from storage.user import get_user_by_id, get_user_by_email
+from storage.user import get_user_by_email, get_user_by_id
 
 load_dotenv()
 
