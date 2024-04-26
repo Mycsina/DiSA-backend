@@ -8,12 +8,12 @@ from uuid import UUID
 from sqlmodel import Session, select
 
 import storage.paperless as ppl
-from models.collection import Collection, Document, SharedState
+from models.collection import Collection, CollectionPermission, Document, Permission, SharedState
 from models.event import DocumentEvent, EventTypes
 from models.folder import Folder, FolderIntake
 from models.update import Update
 from models.user import User
-from security import verify_manifest
+from utils.security import verify_manifest
 from storage.event import register_event
 from storage.folder import (
     create_folder,

@@ -4,7 +4,7 @@ import storage.collection
 from models.collection import Collection, Document, DocumentIntake, EDocumentIntake
 from models.paperless import CollectionPaperless, DocumentPaperless, UserPaperless
 from models.user import User
-import paperless as ppl
+import utils.paperless as ppl
 
 
 async def create_user(db: Session, user: User, **kwargs):
