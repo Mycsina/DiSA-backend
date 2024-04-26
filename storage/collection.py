@@ -15,7 +15,12 @@ from models.update import Update
 from models.user import User
 from security import verify_manifest
 from storage.event import register_event
-from storage.folder import create_folder, recreate_structure, walk_folder
+from storage.folder import (
+    create_folder,
+    populate_documents,
+    recreate_structure,
+    walk_folder,
+)
 from storage.main import TEMP_FOLDER
 
 
@@ -100,6 +105,8 @@ async def create_collection(
         doc = Document(name=name, size=len(data), folder_id=db_folder.id, collection_id=collection.id, hash=file_hash)
         register_event(db, doc, user, EventTypes.Create)
         db.add(doc)
+        # Add UUID to avoid duplicates
+        data = data + str(doc.id).encode()
         # Create the document in Paperless-ngx
         await ppl.create_single_document(db, data, doc, collection, user, name=name, data=data)
 
@@ -176,3 +183,9 @@ def get_document_history(db: Session, doc: Document) -> list[Update | DocumentEv
         doc = doc.next.new
     events.sort(key=lambda x: x.timestamp, reverse=True)
     return events
+
+
+async def download_collection(db: Session, col: Collection, user: User) -> FolderIntake:
+    structure = recreate_structure(db, col.folder, user)
+    structure = await populate_documents(db, structure)
+    return structure

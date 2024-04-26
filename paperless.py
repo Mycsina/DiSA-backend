@@ -1,5 +1,5 @@
 from pypaperless import Paperless
-from pypaperless.models.common import MatchingAlgorithmType
+from pypaperless.models.common import MatchingAlgorithmType, TaskStatusType
 
 from storage.main import PAPERLESS_TOKEN, PAPERLESS_URL
 
@@ -31,6 +31,29 @@ async def create_document(**kwargs) -> str:
         if type(new_id) is not str:
             raise ValueError("ID string wasn't returned")
         return new_id
+
+
+async def verify_document(task_id: str) -> int:
+    """
+    Verify a document was consumed successfully.
+    """
+
+    paperless = spawn_paperless()
+    async with paperless:
+        task = await paperless.tasks(task_id)
+        while task.status == TaskStatusType.UNKNOWN:
+            task = await paperless.tasks(task_id)
+        if task.status == TaskStatusType.FAILURE:
+            if task.result is not None:
+                if "duplicate" in task.result:
+                    raise ValueError("Document rejected due to being a duplicate")
+        if task.status == TaskStatusType.SUCCESS:
+            if task.related_document is None:
+                print(task)
+                raise ValueError("Document wasn't created, but we received a success")
+            return task.related_document
+        print(task)
+        raise ValueError("Document verification failed")
 
 
 async def create_correspondent(**kwargs) -> int:
@@ -104,3 +127,20 @@ async def create_tag(**kwargs) -> int:
         if type(new_id) is not int:
             raise ValueError("ID wasn't returned")
         return new_id
+
+
+async def download_document(document_id: int) -> tuple[bytes, str | None]:
+    """
+    Download a document from Paperless-ngx.
+
+    Args:
+        document_id: str = The ID of the document to download.
+    """
+    paperless = spawn_paperless()
+    async with paperless:
+        document = await paperless.documents.download(document_id)
+        content = document.content
+        if content is None:
+            raise ValueError("Document content is empty")
+        name = document.disposition_filename
+        return content, name

@@ -12,6 +12,7 @@ class FolderBase(SQLModel):
     parent: Optional["FolderBase"] = None
 
 
+# TODO: currently this is used to answer API calls, really isn't meant for that
 class FolderIntake(FolderBase):
     children: list[Union["DocumentIntake", "FolderIntake"]] = []
 
