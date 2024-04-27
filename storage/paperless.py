@@ -84,6 +84,7 @@ async def upload_folder(db: Session, mappings: list[EDocumentIntake], collection
     """
     Create all documents in Paperless-ngx.
     """
+    # TODO: make this run in parallel
     for mapping in mappings:
         await create_document(db, mapping, collection, user)
     return collection
@@ -100,6 +101,5 @@ async def download_document(db: Session, doc: Document, **kwargs) -> DocumentInt
     content, name = await ppl.download_document(paperless_id)
     # Remove UUID bytes from the content
     content = content[: -len(str(doc.id).encode())]
-    if name is None:
-        name = doc.name
+    name = doc.name
     return DocumentIntake(name=name, content=content, size=len(content), hash=doc.hash, parent_folder=None)

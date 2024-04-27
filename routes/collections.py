@@ -3,6 +3,7 @@ from typing import Annotated, Sequence
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from sqlmodel import Session
 
 import storage.collection as collections
@@ -43,14 +44,18 @@ async def create_collection(
 async def download_collection(
     user: Annotated[User, Depends(get_current_user)],
     col_uuid: UUID,
-) -> FolderIntake:
+) -> FileResponse:
     with Session(engine) as session:
         col = collections.get_collection_by_id(session, col_uuid, user)
         if col is None:
             raise HTTPException(status_code=404, detail="Collection not found")
         if not col.can_read(user):
             raise HTTPException(status_code=403, detail="You do not have permission to access this collection")
-        return await collections.download_collection(session, col, user)
+        file_path = await collections.download_collection(session, col, user)
+        return FileResponse(
+            file_path,
+            filename=col.name,
+        )
 
 
 @collections_router.get("/")
