@@ -1,3 +1,4 @@
+import asyncio
 from sqlmodel import Session
 
 import storage.collection
@@ -84,9 +85,12 @@ async def upload_folder(db: Session, mappings: list[EDocumentIntake], collection
     """
     Create all documents in Paperless-ngx.
     """
-    # TODO: make this run in parallel
+    futures = []
     for mapping in mappings:
-        await create_document(db, mapping, collection, user)
+        futures.append(create_document(db, mapping, collection, user))
+    async with asyncio.TaskGroup() as tg:
+        for future in futures:
+            tg.create_task(future)
     return collection
 
 
