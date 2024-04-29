@@ -7,20 +7,19 @@ import os
 from cryptography.hazmat.primitives import hashes
 from dotenv import load_dotenv
 
-load_dotenv()
-
-private_key = os.environ.get("PRIVATE_KEY")
 
 
 # TODO: Add tests
 class BlockchainService:
     def __init__(self, abi_location="resources/abi.json"):
+
+        load_dotenv()
         with open(abi_location) as f:
             abi=json.load(f)
 
-        self.contract=web3.eth.contract(abi=abi, address="0x9e5c6b3d16411736c068026fc212e0b413dce243")
-        self.w3=web3.Web3(web3.Web3.HTTPProvider("https://rpc-mumbai.maticvigil.com"))
-        self.account=self.w3.eth.account.from_key(private_key)
+        self.contract=web3.eth.contract(abi=abi, address=os.environ.get("CONTRACT_ADDRESS"))
+        self.w3=web3.Web3(web3.Web3.HTTPProvider(os.environ.get("NODE_URL")))
+        self.account=self.w3.eth.account.from_key(os.environ.get("PRIVATE_KEY"))
 
     def to_hash(self, manifest: bytes) -> bytes:
         """
