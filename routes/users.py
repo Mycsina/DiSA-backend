@@ -23,7 +23,7 @@ users_router = APIRouter(
 
 
 # register user
-@users_router.post("/users/")
+@users_router.post("/")
 async def register_user(user: UserCreate):
     with Session(engine) as session:
         user.password = password_hash(user.password)
@@ -38,17 +38,17 @@ async def register_user(user: UserCreate):
 
 
 # TODO - test this
-@users_router.post("/users/cmd")
+@users_router.post("/cmd")
 async def register_with_cmd(user: UserCMDCreate):
     with Session(engine) as session:
-        nic = users.retrieve_nic(user.cmd_token)
-        db_user = await users.create_cmd_user(session, user, nic)
+        nic, name = users.retrieve_nic(user.cmd_token)
+        db_user = await users.create_cmd_user(session, user, nic, name)
         token = create_access_token(data={"sub": str(db_user.id)})
         users.update_user_token(session, db_user, token)
         return {"message": f"User {user.mobile_key} created successfully", "token": token}
 
 
-@users_router.post("/users/login/")
+@users_router.post("/login/")
 async def login_with_user_password(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> Token:
@@ -62,10 +62,10 @@ async def login_with_user_password(
 
 
 # TODO - test this
-@users_router.get("users/login/cmd")
+@users_router.get("/login/cmd")
 async def login_with_cmd(id_token: str) -> Token:
     with Session(engine) as session:
-        nic = users.retrieve_nic(id_token)
+        nic, name = users.retrieve_nic(id_token)
         user = users.get_user_by_nic(session, nic)
         if user is None:
             raise CMDFailure()

@@ -25,7 +25,7 @@ class UserSafe(SQLModel):
 class UserBase(SQLModel):
     name: str | None = None
     email: str
-    nic: str
+    nic: str | None = None
     password: str | None = None
     cmd_token: str | None = None
     token: str | None = None
