@@ -8,20 +8,27 @@ from uuid import UUID
 from sqlmodel import Session, select
 
 import storage.paperless as ppl
-from models.collection import Collection, CollectionPermission, Document, Permission, SharedState
+from models.collection import (
+    Collection,
+    CollectionPermission,
+    Document,
+    Permission,
+    SharedState,
+)
 from models.event import DocumentEvent, EventTypes
 from models.folder import Folder, FolderIntake
 from models.update import Update
 from models.user import User
-from utils.security import verify_manifest
 from storage.event import register_event
 from storage.folder import (
     create_folder,
     populate_documents,
     recreate_structure,
     walk_folder,
+    write_folder,
 )
 from storage.main import TEMP_FOLDER
+from utils.security import verify_manifest
 
 
 def get_collections(db: Session, user: User) -> Sequence[Collection]:
@@ -81,7 +88,7 @@ async def create_collection(
 
     # Create the collection in the database
     collection = Collection(name=name, share_state=share_state)
-    db_folder = Folder(name=name)
+    db_folder = Folder(name=name, collection_id=collection.id)
     collection.owner = user
     collection.folder = db_folder
     register_event(db, collection, user, EventTypes.Create)
@@ -189,10 +196,17 @@ def get_document_history(db: Session, doc: Document) -> list[Update | DocumentEv
     return events
 
 
-async def download_collection(db: Session, col: Collection, user: User) -> FolderIntake:
+async def download_collection(db: Session, col: Collection, user: User) -> str:
     structure = recreate_structure(db, col.folder, user)
     structure = await populate_documents(db, structure)
-    return structure
+
+    folder_path = f"{TEMP_FOLDER}/{col.name}"
+    write_folder(structure, folder_path)
+    with open(folder_path + ".tar", "wb") as tar:
+        with tarfile.open(fileobj=tar, mode="w") as tar:
+            tar.add(folder_path, arcname=col.name)
+
+    return folder_path + ".tar"
 
 
 def allow_read(db: Session, user: User, col: Collection):
@@ -211,3 +225,13 @@ def allow_view(db: Session, user: User, col: Collection):
     perm = CollectionPermission(user_id=user.id, collection_id=col.id, permission=Permission.view)
     db.add(perm)
     db.commit()
+
+
+def add_permission(db: Session, col: Collection, user: User, permission: Permission):
+    match permission:
+        case Permission.read:
+            allow_read(db, user, col)
+        case Permission.write:
+            allow_write(db, user, col)
+        case Permission.view:
+            allow_view(db, user, col)

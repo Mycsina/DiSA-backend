@@ -22,6 +22,13 @@ async def create_user(db: Session, user: UserCreate) -> User:
     return db_user
 
 
+def create_anonymous_user(db: Session, email: str) -> User:
+    db_user = User(email=email)
+    db.add(db_user)
+    db.commit()
+    return db_user
+
+
 async def create_cmd_user(db: Session, user: UserCMDCreate, nic: str) -> User:
     db_user = User(
         email=user.email,
@@ -63,6 +70,10 @@ def get_user_by_nic(db: Session, nic: str) -> User | None:
     statement = select(User).where(User.nic == nic)
     results = db.exec(statement)
     return results.first()
+
+
+def is_anonymous_user(db: Session, user: User) -> bool:
+    return user.nic is None
 
 
 def retrieve_nic(cmd_token: str) -> str:
