@@ -45,7 +45,7 @@ async def register_with_cmd(user: UserCMDCreate):
         db_user = await users.create_cmd_user(session, user, nic, name)
         token = create_access_token(data={"sub": str(db_user.id)})
         users.update_user_token(session, db_user, token)
-        return {"message": f"User {user.mobile_key} created successfully", "token": token}
+        return {"message": f"User {name} created successfully", "token": token}
 
 
 @users_router.post("/login/")

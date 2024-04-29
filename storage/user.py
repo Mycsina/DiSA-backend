@@ -6,7 +6,7 @@ import requests
 from sqlmodel import Session, select
 
 from models.user import User, UserCMDCreate, UserCreate
-from utils.paperless import create_correspondent
+import storage.paperless as ppl
 from utils.exceptions import CMDFailure
 
 
@@ -30,8 +30,7 @@ async def create_cmd_user(db: Session, user: UserCMDCreate, nic: str, name: str)
         nic=nic,
         name=name
     )
-    corr_id = await create_correspondent(name=db_user.email)
-    db_user.paperless.paperless_id = corr_id  # type: ignore
+    await ppl.create_user(db, db_user)
     db.add(db_user)
     db.commit()
     return db_user
