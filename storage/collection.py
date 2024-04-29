@@ -225,3 +225,13 @@ def allow_view(db: Session, user: User, col: Collection):
     perm = CollectionPermission(user_id=user.id, collection_id=col.id, permission=Permission.view)
     db.add(perm)
     db.commit()
+
+
+def add_permission(db: Session, col: Collection, user: User, permission: Permission):
+    match permission:
+        case Permission.read:
+            allow_read(db, user, col)
+        case Permission.write:
+            allow_write(db, user, col)
+        case Permission.view:
+            allow_view(db, user, col)

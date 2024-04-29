@@ -47,7 +47,7 @@ class UserCMDCreate(UserBase):
 class User(UserBase, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     email: str = Field(unique=True)
-    nic: str = Field(unique=True)
+    nic: str | None = Field(default=None, unique=True)
     role: UserRole = Field(default=UserRole.USER)
 
     doc_events: list["DocumentEvent"] = Relationship(back_populates="user")

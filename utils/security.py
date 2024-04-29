@@ -25,6 +25,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="users/login")
+optional_oauth2 = OAuth2PasswordBearer(tokenUrl="users/login", auto_error=False)
 
 
 class Token(BaseModel):
@@ -64,6 +65,12 @@ def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+
+def get_optional_user(token: str | None = Depends(optional_oauth2)) -> User | None:
+    if token is None:
+        return None
+    return get_current_user(token)
 
 
 def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
