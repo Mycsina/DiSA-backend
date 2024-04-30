@@ -4,4 +4,3 @@ venv/
 *.db
 !test.db
 .python-version
-.env
