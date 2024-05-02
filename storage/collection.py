@@ -11,9 +11,9 @@ import storage.paperless as ppl
 from models.collection import (
     Collection,
     CollectionPermission,
+    CollectionPermissionInfo,
     Document,
     Permission,
-    SharedState,
 )
 from models.event import DocumentEvent, EventTypes
 from models.folder import Folder, FolderIntake
@@ -28,6 +28,7 @@ from storage.folder import (
     write_folder,
 )
 from storage.main import TEMP_FOLDER
+from storage.user import get_user_by_id
 from utils.security import verify_manifest
 
 
@@ -77,7 +78,6 @@ async def create_collection(
     name: str,
     data: bytes,
     user: User,
-    share_state: SharedState,
     manifest_hash: str,
     transaction_address: str,
 ) -> Collection:
@@ -87,7 +87,7 @@ async def create_collection(
         raise AssertionError("Manifest hash does not match the transaction address")
 
     # Create the collection in the database
-    collection = Collection(name=name, share_state=share_state)
+    collection = Collection(name=name)
     db_folder = Folder(name=name, collection_id=collection.id)
     collection.owner = user
     collection.folder = db_folder
@@ -209,29 +209,67 @@ async def download_collection(db: Session, col: Collection, user: User) -> str:
     return folder_path + ".tar"
 
 
-def allow_read(db: Session, user: User, col: Collection):
-    perm = CollectionPermission(user_id=user.id, collection_id=col.id, permission=Permission.read)
+def allow_read(db: Session, user: User, col: Collection, creator: User):
+    perm = CollectionPermission(
+        user_id=user.id, collection_id=col.id, permission=Permission.read, creator_id=creator.id
+    )
     db.add(perm)
     db.commit()
 
 
-def allow_write(db: Session, user: User, col: Collection):
-    perm = CollectionPermission(user_id=user.id, collection_id=col.id, permission=Permission.write)
+def allow_write(db: Session, user: User, col: Collection, creator: User):
+    perm = CollectionPermission(
+        user_id=user.id, collection_id=col.id, permission=Permission.write, creator_id=creator.id
+    )
     db.add(perm)
     db.commit()
 
 
-def allow_view(db: Session, user: User, col: Collection):
-    perm = CollectionPermission(user_id=user.id, collection_id=col.id, permission=Permission.view)
+def allow_view(db: Session, user: User, col: Collection, creator: User):
+    perm = CollectionPermission(
+        user_id=user.id, collection_id=col.id, permission=Permission.view, creator_id=creator.id
+    )
     db.add(perm)
     db.commit()
 
 
-def add_permission(db: Session, col: Collection, user: User, permission: Permission):
+def convert_user_id_to_email(db: Session, perms: list[CollectionPermission]) -> list[CollectionPermissionInfo]:
+    result = []
+    for perm in perms:
+        user = get_user_by_id(db, perm.user_id)
+        creator = get_user_by_id(db, perm.creator_id)
+        if user is None or creator is None:
+            raise LookupError("This should never happen.")
+        info = CollectionPermissionInfo(
+            collection_id=perm.collection_id,
+            email=user.email,
+            creator_email=creator.email,
+            permission=perm.permission,
+        )
+        result.append(info)
+    return result
+
+
+def add_permission(db: Session, col: Collection, user: User, permission: Permission, creator: User):
     match permission:
         case Permission.read:
-            allow_read(db, user, col)
+            allow_read(db, user, col, creator)
         case Permission.write:
-            allow_write(db, user, col)
+            allow_write(db, user, col, creator)
         case Permission.view:
-            allow_view(db, user, col)
+            allow_view(db, user, col, creator)
+
+
+def remove_permission(db: Session, col: Collection, user: User, permission: Permission, executor: User):
+    statement = (
+        select(CollectionPermission)
+        .where(CollectionPermission.collection_id == col.id)
+        .where(CollectionPermission.user_id == user.id)
+        .where(CollectionPermission.creator_id == executor.id)
+        .where(CollectionPermission.permission == permission)
+    )
+    results = db.exec(statement)
+    perm = results.first()
+    db.delete(perm)
+    db.commit()
+    return True
