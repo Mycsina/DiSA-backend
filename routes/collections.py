@@ -38,7 +38,6 @@ async def create_collection(
             raise HTTPException(status_code=400, detail="No file name provided")
         data = await file.read()
         collection = await collections.create_collection(session, name, data, user, manifest_hash, transaction_address)
-
         return {"message": "Collection created successfully", "uuid": collection.id}
 
 

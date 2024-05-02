@@ -31,11 +31,7 @@ def create_anonymous_user(db: Session, email: str) -> User:
 
 
 async def create_cmd_user(db: Session, user: UserCMDCreate, nic: str, name: str) -> User:
-    db_user = User(
-        email=user.email,
-        nic=nic,
-        name=name
-    )
+    db_user = User(email=user.email, nic=nic, name=name)
     await ppl.create_user(db, db_user)
     db.commit()
     return db_user
@@ -75,12 +71,26 @@ def get_user_by_nic(db: Session, nic: str) -> User | None:
 def is_anonymous_user(db: Session, user: User) -> bool:
     return user.nic is None
 
+
 def retrieve_nic(cmd_token: str) -> Tuple[str, str]:
+    url = "https://preprod.autenticacao.gov.pt/oauthresourceserver/api/AttributeManager"
+    payload = {
+        "token": cmd_token,
+        "attributesName": ["http://interop.gov.pt/MDC/Cidadao/NIC" "http://interop.gov.pt/MDC/Cidadao/NomeProprio"],
+    }
+
+    response = requests.post(url, data=payload)
+    parsed_response = response.json()
+    new_token = parsed_response.get("token", None)
+    auth_context = parsed_response.get("authenticationContextId", None)
+
+    if auth_context is None or new_token is None:
+        raise CMDFailure()
+
     retries = 0
     nic, name = None, None
     while retries < 10:
-        response = requests.get(url, params={"token": new_token,
-                                             "authenticationContextId": auth_context})
+        response = requests.get(url, params={"token": new_token, "authenticationContextId": auth_context})
         parsed_response = response.json()
 
         for obj in parsed_response:
@@ -93,5 +103,5 @@ def retrieve_nic(cmd_token: str) -> Tuple[str, str]:
             return nic, name
 
         time.sleep(3)
-    raise ValueError("NIC not found")
 
+    raise ValueError("NIC not found")
