@@ -3,15 +3,21 @@ from typing import Annotated, Sequence
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from sqlmodel import Session
 
 import storage.collection as collections
 import storage.user as users
-from models.collection import Collection, CollectionInfo, Permission, SharedState
+from models.collection import (
+    Collection,
+    CollectionInfo,
+    CollectionPermissionInfo,
+    Permission,
+)
 from models.folder import FolderIntake
 from models.user import User
 from storage.main import engine
-from utils.security import get_current_user
+from utils.security import get_current_user, get_optional_user
 
 collections_router = APIRouter(
     prefix="/collections",
@@ -25,32 +31,46 @@ async def create_collection(
     manifest_hash: str | None = None,
     transaction_address: str | None = None,
     file: UploadFile = File(...),
-    share_state: SharedState = SharedState.private,
 ):
     with Session(engine) as session:
         name = file.filename
         if name is None:
             raise HTTPException(status_code=400, detail="No file name provided")
         data = await file.read()
-        collection = await collections.create_collection(
-            session, name, data, user, share_state, manifest_hash, transaction_address
-        )
+        collection = await collections.create_collection(session, name, data, user, manifest_hash, transaction_address)
 
         return {"message": "Collection created successfully", "uuid": collection.id}
 
 
+# TODO: test this
 @collections_router.get("/download")
 async def download_collection(
-    user: Annotated[User, Depends(get_current_user)],
+    user: Annotated[User | None, Depends(get_optional_user)],
     col_uuid: UUID,
-) -> FolderIntake:
+    email: str | None = None,
+) -> FileResponse:
+    # Verify user or email is provided
+    if user is None and email is None:
+        raise HTTPException(status_code=400, detail="No authentication method provided")
+    if user is not None and email is not None:
+        raise HTTPException(status_code=400, detail="Provide only one authentication method")
     with Session(engine) as session:
-        col = collections.get_collection_by_id(session, col_uuid, user)
+        db_user = user
+        # If email is provided, get the anonymous user
+        if email is not None:
+            db_user = users.get_user_by_email(session, email)
+        if db_user is None:
+            raise HTTPException(status_code=404, detail="Anonymous user not found. Does this email have permission?")
+        col = collections.get_collection_by_id(session, col_uuid, db_user)
         if col is None:
             raise HTTPException(status_code=404, detail="Collection not found")
-        if not col.can_read(user):
+        if not col.can_read(db_user):
             raise HTTPException(status_code=403, detail="You do not have permission to access this collection")
-        return await collections.download_collection(session, col, user)
+        file_path = await collections.download_collection(session, col, db_user)
+        return FileResponse(
+            file_path,
+            filename=col.name,
+        )
 
 
 @collections_router.get("/")
@@ -117,7 +137,46 @@ async def delete_collection(
 async def add_permission(
     user: Annotated[User, Depends(get_current_user)],
     col_uuid: UUID,
-    user_uuid: UUID,
+    permission: Permission,
+    email: str,
+):
+    with Session(engine) as session:
+        col = collections.get_collection_by_id(session, col_uuid, user)
+        if col is None:
+            raise HTTPException(status_code=404, detail="Collection not found")
+        if not col.can_write(user):
+            raise HTTPException(status_code=403, detail="You do not have permission to write to this collection")
+        db_user = users.get_user_by_email(session, email)
+        # If creating for anonymous user
+        if db_user is None:
+            db_user = users.create_anonymous_user(session, email)
+        if db_user is None:
+            raise HTTPException(status_code=404, detail="Anonymous user could not be created for given email.")
+        collections.add_permission(session, col, db_user, permission, user)
+        return {"message": "Permission added successfully"}
+
+
+# TODO: test this
+@collections_router.get("/permissions")
+async def get_permissions(
+    user: Annotated[User, Depends(get_current_user)],
+    col_uuid: UUID,
+) -> Sequence[CollectionPermissionInfo]:
+    with Session(engine) as session:
+        col = collections.get_collection_by_id(session, col_uuid, user)
+        if col is None:
+            raise HTTPException(status_code=404, detail="Collection not found")
+        if not col.can_write(user):
+            raise HTTPException(status_code=403, detail="You do not have permission to write to this collection")
+        return collections.convert_user_id_to_email(session, col.permissions)
+
+
+# TODO: test this
+@collections_router.delete("/permissions")
+async def remove_permission(
+    user: Annotated[User, Depends(get_current_user)],
+    col_uuid: UUID,
+    email: str,
     permission: Permission,
 ):
     with Session(engine) as session:
@@ -126,17 +185,11 @@ async def add_permission(
             raise HTTPException(status_code=404, detail="Collection not found")
         if not col.can_write(user):
             raise HTTPException(status_code=403, detail="You do not have permission to write to this collection")
-        db_user = users.get_user_by_id(session, user_uuid)
+        db_user = users.get_user_by_email(session, email)
         if db_user is None:
             raise HTTPException(status_code=404, detail="User not found")
-        match permission:
-            case Permission.read:
-                collections.allow_read(session, db_user, col)
-            case Permission.write:
-                collections.allow_write(session, db_user, col)
-            case Permission.view:
-                collections.allow_view(session, db_user, col)
-        return {"message": "Permission added successfully"}
+        collections.remove_permission(session, col, db_user, permission, user)
+        return {"message": "Permission removed successfully"}
 
 
 # TODO - ability to filter documents by type, size or owner

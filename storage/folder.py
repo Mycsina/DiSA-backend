@@ -50,37 +50,39 @@ async def populate_documents(db: Session, root: FolderIntake) -> FolderIntake:
     return new_root
 
 
+def write_folder(root: FolderIntake, path: str):
+    """Write the FolderIntake structure to the given path."""
+    os.makedirs(path, exist_ok=True)
+    for child in root.children:
+        if isinstance(child, FolderIntake):
+            write_folder(child, os.path.join(path, child.name))
+        else:
+            with open(os.path.join(path, child.name), "wb") as file:
+                file.write(child.content)
+
+
 # TODO: saving all file content in memory is not a good idea
 def walk_folder(root: str, user: User) -> FolderIntake:
     """Walk through the given root path and create a tree of FolderIntake and DocumentIntake objects."""
-    root_name = os.path.basename(root)
-    root_folder = FolderIntake(name=root_name)
-    folders_to_visit: list[str] = [root]
-    parents_of_folders_to_visit: list[FolderIntake] = [root_folder]
-    while len(folders_to_visit) > 0:
-        folder = folders_to_visit.pop()
-        parent = parents_of_folders_to_visit.pop()
-        children = []
-        for item in os.listdir(folder):
-            item_path = os.path.join(folder, item)
-            if os.path.isdir(item_path):
-                children.append(FolderIntake(name=item, parent=parent))
-                folders_to_visit.append(item_path)
-                parents_of_folders_to_visit.append(children[-1])
-            else:
-                content = open(item_path, "rb").read()
-                file_hash = hashlib.sha256(content).hexdigest()
-                children.append(
-                    DocumentIntake(
-                        name=item,
-                        size=os.path.getsize(item_path),
-                        content=content,
-                        hash=file_hash,
-                        parent_folder=parent,
-                    )
+    name = os.path.basename(root)
+    folder = FolderIntake(name=name)
+    for item in os.listdir(root):
+        item_path = os.path.join(root, item)
+        if os.path.isdir(item_path):
+            folder.children.append(walk_folder(item_path, user))
+        else:
+            content = open(item_path, "rb").read()
+            file_hash = hashlib.sha256(content).hexdigest()
+            folder.children.append(
+                DocumentIntake(
+                    name=item,
+                    size=os.path.getsize(item_path),
+                    content=content,
+                    hash=file_hash,
+                    parent_folder=folder,
                 )
-        parent.children = children
-    return root_folder
+            )
+    return folder
 
 
 def create_folder(db: Session, root: FolderIntake, db_root: Folder) -> list[EDocumentIntake]:

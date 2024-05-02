@@ -12,13 +12,6 @@ from models.update import Update
 from models.user import User
 
 
-class SharedState(str, Enum):
-    private = "private"
-    public = "public"
-    embargoed = "embargoed"
-    restricted = "restricted"
-
-
 class Permission(str, Enum):
     view = "view"
     read = "read"
@@ -85,7 +78,6 @@ class CollectionBase(SQLModel):
     id: UUID
     name: str
     owner_id: UUID
-    share_state: SharedState = SharedState.private
     access_from_date: datetime | None = None
 
     def __init__(self, **kwargs):
@@ -109,7 +101,7 @@ class Collection(CollectionBase, table=True):
     documents: list["Document"] = Relationship(back_populates="collection")
     events: list["CollectionEvent"] = Relationship(back_populates="collection")
     paperless: Optional["CollectionPaperless"] = Relationship(back_populates="collection")
-    permissions: List["CollectionPermission"] = Relationship(back_populates="collection")
+    permissions: list["CollectionPermission"] = Relationship(back_populates="collection")
 
     def is_deleted(self) -> bool:
         return any([event.type == EventTypes.Delete for event in self.events])
@@ -144,10 +136,19 @@ class Collection(CollectionBase, table=True):
 class CollectionPermission(SQLModel, table=True):
     collection_id: UUID = Field(primary_key=True, foreign_key="collection.id")
     user_id: UUID = Field(primary_key=True, foreign_key="user.id")
-    permission: Permission
+    creator_id: UUID = Field(primary_key=True, foreign_key="user.id")
+    permission: Permission = Field(primary_key=True)
 
     collection: Collection = Relationship(back_populates="permissions")
     user: User = Relationship(back_populates="permissions")
+    creator: User = Relationship(back_populates="created_perms")
+
+
+class CollectionPermissionInfo(SQLModel):
+    collection_id: UUID
+    email: str
+    creator_email: str
+    permission: Permission
 
 
 class CollectionInfo(CollectionBase):

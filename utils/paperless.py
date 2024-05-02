@@ -1,3 +1,4 @@
+import asyncio
 from pypaperless import Paperless
 from pypaperless.models.common import MatchingAlgorithmType, TaskStatusType
 
@@ -41,7 +42,8 @@ async def verify_document(task_id: str) -> int:
     paperless = spawn_paperless()
     async with paperless:
         task = await paperless.tasks(task_id)
-        while task.status == TaskStatusType.UNKNOWN:
+        while task.status in [TaskStatusType.UNKNOWN, TaskStatusType.PENDING]:
+            await asyncio.sleep(1)
             task = await paperless.tasks(task_id)
         if task.status == TaskStatusType.FAILURE:
             if task.result is not None:
