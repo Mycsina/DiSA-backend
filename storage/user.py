@@ -1,3 +1,5 @@
+from typing import Tuple
+import time
 from uuid import UUID
 
 import requests
@@ -28,12 +30,12 @@ def create_anonymous_user(db: Session, email: str) -> User:
     return db_user
 
 
-async def create_cmd_user(db: Session, user: UserCMDCreate, nic: str) -> User:
+async def create_cmd_user(db: Session, user: UserCMDCreate, nic: str, name: str) -> User:
     db_user = User(
         email=user.email,
         nic=nic,
+        name=name
     )
-    db.add(db_user)
     await ppl.create_user(db, db_user)
     db.commit()
     return db_user
@@ -73,25 +75,23 @@ def get_user_by_nic(db: Session, nic: str) -> User | None:
 def is_anonymous_user(db: Session, user: User) -> bool:
     return user.nic is None
 
+def retrieve_nic(cmd_token: str) -> Tuple[str, str]:
+    retries = 0
+    nic, name = None, None
+    while retries < 10:
+        response = requests.get(url, params={"token": new_token,
+                                             "authenticationContextId": auth_context})
+        parsed_response = response.json()
 
-def retrieve_nic(cmd_token: str) -> str:
-    url = "https://preprod.autenticacao.gov.pt/oauthresourceserver/api/AttributeManager"
-    payload = {
-        "token": cmd_token,
-    }
-    response = requests.post(url, data=payload)
-    parsed_response = response.json()
-    new_token = parsed_response.get("token", None)
-    auth_context = parsed_response.get("authenticationContextId", None)
-    if auth_context is None or new_token is None:
-        raise CMDFailure()
+        for obj in parsed_response:
+            if "NIC" in obj["name"]:
+                nic = obj["value"]
+            if "NomeProprio" in obj["name"]:
+                name = obj["value"]
 
-    response = requests.get(
-        url, params={"token": new_token, "authenticationContextId": auth_context}
-    )
-    parsed_response = response.json()
-    for obj in parsed_response:
-        if "NIC" in obj["name"]:
-            return obj["value"]
+        if nic is not None and name is not None:
+            return nic, name
 
+        time.sleep(3)
     raise ValueError("NIC not found")
+

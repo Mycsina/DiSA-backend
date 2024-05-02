@@ -41,11 +41,11 @@ async def register_user(user: UserCreate):
 @users_router.post("/cmd")
 async def register_with_cmd(user: UserCMDCreate):
     with Session(engine) as session:
-        nic = users.retrieve_nic(user.cmd_token)
-        db_user = await users.create_cmd_user(session, user, nic)
+        nic, name = users.retrieve_nic(user.cmd_token)
+        db_user = await users.create_cmd_user(session, user, nic, name)
         token = create_access_token(data={"sub": str(db_user.id)})
         users.update_user_token(session, db_user, token)
-        return {"message": f"User {user.mobile_key} created successfully", "token": token}
+        return {"message": f"User {name} created successfully", "token": token}
 
 
 @users_router.post("/login/")
@@ -65,7 +65,7 @@ async def login_with_user_password(
 @users_router.get("/login/cmd")
 async def login_with_cmd(id_token: str) -> Token:
     with Session(engine) as session:
-        nic = users.retrieve_nic(id_token)
+        nic, name = users.retrieve_nic(id_token)
         user = users.get_user_by_nic(session, nic)
         if user is None:
             raise CMDFailure()
