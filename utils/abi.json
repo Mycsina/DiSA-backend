@@ -4,21 +4,21 @@
 		"inputs": [
 			{
 				"indexed": false,
-				"internalType": "bytes32",
+				"internalType": "string",
 				"name": "originalHash",
-				"type": "bytes32"
+				"type": "string"
 			},
 			{
 				"indexed": false,
-				"internalType": "bytes32",
+				"internalType": "string",
 				"name": "processedHash",
-				"type": "bytes32"
+				"type": "string"
 			},
 			{
 				"indexed": false,
-				"internalType": "uint256",
+				"internalType": "string",
 				"name": "url",
-				"type": "uint256"
+				"type": "string"
 			}
 		],
 		"name": "certificateStored",
@@ -29,9 +29,9 @@
 		"inputs": [
 			{
 				"indexed": false,
-				"internalType": "bytes32",
+				"internalType": "string",
 				"name": "originalHash",
-				"type": "bytes32"
+				"type": "string"
 			}
 		],
 		"name": "hashStored",
@@ -40,19 +40,19 @@
 	{
 		"inputs": [
 			{
-				"internalType": "bytes32",
+				"internalType": "string",
 				"name": "originalHash",
-				"type": "bytes32"
+				"type": "string"
 			},
 			{
-				"internalType": "bytes32",
+				"internalType": "string",
 				"name": "processedHash",
-				"type": "bytes32"
+				"type": "string"
 			},
 			{
-				"internalType": "uint256",
+				"internalType": "string",
 				"name": "url",
-				"type": "uint256"
+				"type": "string"
 			}
 		],
 		"name": "storeCertificate",
@@ -63,9 +63,9 @@
 	{
 		"inputs": [
 			{
-				"internalType": "bytes32",
+				"internalType": "string",
 				"name": "originalHash",
-				"type": "bytes32"
+				"type": "string"
 			}
 		],
 		"name": "storeHash",
