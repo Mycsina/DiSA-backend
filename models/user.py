@@ -57,11 +57,11 @@ class User(UserBase, table=True):
     paperless: Optional["UserPaperless"] = Relationship(back_populates="user")
     permissions: list["CollectionPermission"] = Relationship(
         back_populates="user",
-        sa_relationship_kwargs=dict(remote_side="CollectionPermission.user_id"),
+        sa_relationship_kwargs={"foreign_keys": "CollectionPermission.user_id"},
     )
     created_perms: list["CollectionPermission"] = Relationship(
         back_populates="creator",
-        sa_relationship_kwargs=dict(remote_side="CollectionPermission.creator_id"),
+        sa_relationship_kwargs={"foreign_keys": "CollectionPermission.creator_id"},
     )
 
 
