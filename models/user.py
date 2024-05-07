@@ -59,11 +59,6 @@ class User(UserBase, table=True):
         back_populates="user",
         sa_relationship_kwargs={"foreign_keys": "CollectionPermission.user_id"},
     )
-    created_perms: list["CollectionPermission"] = Relationship(
-        back_populates="creator",
-        sa_relationship_kwargs={"foreign_keys": "CollectionPermission.creator_id"},
-    )
-
 
 def strip_sensitive(user: UserBase) -> UserSafe:
     return UserSafe(email=user.email, role=user.role, name=user.name)

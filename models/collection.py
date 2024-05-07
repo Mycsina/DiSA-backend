@@ -141,7 +141,6 @@ class CollectionPermission(SQLModel, table=True):
 
     collection: Collection = Relationship(back_populates="permissions")
     user: User = Relationship(back_populates="permissions")
-    creator: User = Relationship(back_populates="created_perms")
 
 
 class CollectionPermissionInfo(SQLModel):
