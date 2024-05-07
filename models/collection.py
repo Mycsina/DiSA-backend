@@ -140,7 +140,6 @@ class CollectionPermission(SQLModel, table=True):
     permission: Permission = Field(primary_key=True)
 
     collection: Collection = Relationship(back_populates="permissions")
-    user: User = Relationship(back_populates="permissions")
 
 
 class CollectionPermissionInfo(SQLModel):

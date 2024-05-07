@@ -55,10 +55,7 @@ class User(UserBase, table=True):
     collections: list["Collection"] = Relationship(back_populates="owner")
     updates: list["Update"] = Relationship(back_populates="user")
     paperless: Optional["UserPaperless"] = Relationship(back_populates="user")
-    permissions: list["CollectionPermission"] = Relationship(
-        back_populates="user",
-        sa_relationship_kwargs={"foreign_keys": "CollectionPermission.user_id"},
-    )
+
 
 def strip_sensitive(user: UserBase) -> UserSafe:
     return UserSafe(email=user.email, role=user.role, name=user.name)
