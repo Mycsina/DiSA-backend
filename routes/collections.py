@@ -83,9 +83,9 @@ async def get_all_collections(
 @collections_router.get("/user")
 async def get_user_collections(
     user: Annotated[User, Depends(get_current_user)],
-) -> Sequence[Collection]:
+) -> Sequence[CollectionInfo]:
     with Session(engine) as session:
-        return collections.get_collections_by_user(session, user)
+        return [CollectionInfo.populate(col) for col in collections.get_collections_by_user(session, user)]
 
 
 @collections_router.get("/info")
