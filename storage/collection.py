@@ -96,30 +96,24 @@ async def create_collection(
     # Create the collection in Paperless-ngx
     await ppl.create_collection(db, collection, name=name)
 
-    # We're dealing with a zipped folder
-    if name.split(".")[-2].lower() == "tar":
-        f = io.BytesIO(data)
-        with tarfile.open(fileobj=f) as tar:
-            tar.extractall(f"{TEMP_FOLDER}", filter="data")
-        # Create the folder structure, walking through the extracted files
-        folder_name = f"{TEMP_FOLDER}/{name.split('.')[0]}"
-        root = walk_folder(folder_name, user)
-        # Create the folder structure in the database
-        mappings = create_folder(db, root, db_folder)
-        # Ingest the documents into Paperless-ngx
-        await ppl.upload_folder(db, mappings, collection, user)
+    # Extract tarfile containing signature, manifest and files
+    archive_name = name.split(".")[0]
+    f = io.BytesIO(data)
+    folder_name = f"{TEMP_FOLDER}/{archive_name}"
+    with tarfile.open(fileobj=f) as tar:
+        tar.extractall(folder_name, filter="data")
 
-    # We're dealing with a single document
-    else:
-        # Create the document in the database
-        file_hash = hashlib.sha256(data).hexdigest()
-        doc = Document(name=name, size=len(data), folder_id=db_folder.id, collection_id=collection.id, hash=file_hash)
-        register_event(db, doc, user, EventTypes.Create)
-        db.add(doc)
-        # Add UUID to avoid duplicates
-        data = data + str(doc.id).encode()
-        # Create the document in Paperless-ngx
-        await ppl.create_single_document(db, data, doc, collection, user, name=name, data=data)
+    with open(folder_name + "/hashes.asics") as f:
+        signature = f.read()
+
+    with open(folder_name + "/hashes.json") as f:
+        hashes = f.read()
+
+    root = walk_folder(folder_name + "/archive", user)
+    # Create the folder structure in the database
+    mappings = create_folder(db, root, db_folder)
+    # Ingest the documents into Paperless-ngx
+    await ppl.upload_folder(db, mappings, collection, user)
 
     db.add(collection)
     db.commit()
