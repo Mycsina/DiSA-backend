@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Annotated, Sequence
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Form
 from fastapi.responses import FileResponse
 from sqlmodel import Session
 
@@ -28,8 +28,7 @@ collections_router = APIRouter(
 @collections_router.post("/")
 async def create_collection(
     user: Annotated[User, Depends(get_current_user)],
-    manifest_hash: str | None = None,
-    transaction_address: str | None = None,
+    transaction_address: Annotated[str, Form()],
     file: UploadFile = File(...),
 ):
     with Session(engine) as session:
@@ -37,7 +36,7 @@ async def create_collection(
         if name is None:
             raise HTTPException(status_code=400, detail="No file name provided")
         data = await file.read()
-        collection = await collections.create_collection(session, name, data, user, manifest_hash, transaction_address)
+        collection = await collections.create_collection(session, name, data, user, transaction_address)
         return {"message": "Collection created successfully", "uuid": collection.id}
 
 

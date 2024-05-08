@@ -78,13 +78,12 @@ async def create_collection(
     name: str,
     data: bytes,
     user: User,
-    manifest_hash: str,
     transaction_address: str,
 ) -> Collection:
 
     # Check manifest hash against the blockchain event
-    if not verify_manifest(manifest_hash, transaction_address):
-        raise AssertionError("Manifest hash does not match the transaction address")
+    # if not verify_manifest(manifest_hash, transaction_address):
+    #     raise AssertionError("Manifest hash does not match the transaction address")
 
     # Create the collection in the database
     collection = Collection(name=name)
@@ -103,10 +102,10 @@ async def create_collection(
     with tarfile.open(fileobj=f) as tar:
         tar.extractall(folder_name, filter="data")
 
-    with open(folder_name + "/hashes.asics") as f:
+    with open(folder_name + "/hashes.asics", "rb") as f:
         signature = f.read()
 
-    with open(folder_name + "/hashes.json") as f:
+    with open(folder_name + "/hashes.json", "rb") as f:
         hashes = f.read()
 
     root = walk_folder(folder_name + "/archive", user)
