@@ -1,5 +1,6 @@
 import hashlib
 import io
+import json
 import tarfile
 from datetime import datetime
 from typing import Sequence
@@ -81,10 +82,6 @@ async def create_collection(
     transaction_address: str,
 ) -> Collection:
 
-    # Check manifest hash against the blockchain event
-    # if not verify_manifest(manifest_hash, transaction_address):
-    #     raise AssertionError("Manifest hash does not match the transaction address")
-
     # Create the collection in the database
     collection = Collection(name=name)
     db_folder = Folder(name=name, collection_id=collection.id)
@@ -104,9 +101,19 @@ async def create_collection(
 
     with open(folder_name + "/hashes.asics", "rb") as f:
         signature = f.read()
+    collection.signature = signature
 
-    with open(folder_name + "/hashes.json", "rb") as f:
+    with open(folder_name + "/hashes.json", "r") as f:
         hashes = f.read()
+    collection.hashes = hashes
+    manifest_hash = hashlib.sha256(hashes.encode()).hexdigest()
+
+    # Parse the hashes.json file
+    hash_json = json.loads(hashes)
+
+    # Check manifest hash against the blockchain event
+    if not verify_manifest(manifest_hash, transaction_address):
+        raise AssertionError("Manifest hash does not match the transaction address")
 
     root = walk_folder(folder_name + "/archive", user)
     # Create the folder structure in the database

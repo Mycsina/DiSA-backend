@@ -95,6 +95,8 @@ class CollectionBase(SQLModel):
 class Collection(CollectionBase, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     owner_id: UUID | None = Field(default=None, foreign_key="user.id", nullable=False)
+    signature: bytes | None = Field(default=None)
+    manifest_hash: str | None = Field(default=None)
 
     folder: Folder = Relationship(back_populates="collection")
     owner: "User" = Relationship(back_populates="collections")

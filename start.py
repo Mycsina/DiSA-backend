@@ -50,6 +50,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# TODO: Tighten database constraints
+
 
 @app.get("/")
 async def root():
