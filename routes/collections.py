@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import Annotated, Sequence
 from uuid import UUID
@@ -18,6 +19,9 @@ from models.folder import FolderIntake
 from models.user import User
 from storage.main import engine
 from utils.security import get_current_user, get_optional_user
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 collections_router = APIRouter(
     prefix="/collections",
@@ -211,3 +215,27 @@ async def filter_documents(
         if documents is None:
             raise HTTPException(status_code=404, detail="No documents found")
         return documents
+
+@collections_router.put("/{collection_uuid}")
+async def update_collection_name(
+    user: Annotated[User, Depends(get_current_user)],
+    col_uuid: UUID,
+    name: str
+):
+    with Session(engine) as session:
+        col = collections.get_collection_by_id(session, col_uuid, user)
+        if col is None:
+            logger.error(f"Collection {col_uuid} not found")
+            raise HTTPException(status_code=404, detail="Collection not found")
+        if not col.can_write(user):
+            logger.error(f"User {user.email} does not have permission to write to collection {col_uuid}")
+            raise HTTPException(status_code=403, detail="You do not have permission to write to this collection")
+        # try:
+        #     collections.update_collection_name(session, col, user, name)
+        #     logger.info(f"Collection {col_uuid} name updated to {name}")
+        #     return {"message": "Collection name updated successfully"}
+        # except ValueError:
+        #     logger.error(f"Collection {col_uuid} name could not be updated")
+        #     raise HTTPException(status_code=400, detail="Collection name could not be updated")
+        collections.update_collection_name(session, col, user, name)
+        return {"message": "Collection name updated successfully"}
