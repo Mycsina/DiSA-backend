@@ -1,3 +1,4 @@
+import logging
 from http import HTTPStatus
 from typing import Annotated
 
@@ -16,6 +17,9 @@ from utils.security import (
 )
 from storage.main import engine
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
 users_router = APIRouter(
     prefix="/users",
     tags=["users"],
@@ -30,10 +34,12 @@ async def register_user(user: UserCreate):
         try:
             db_user = await users.create_user(session, user)
         except Exception as e:
+            logger.error(f"Failing to register user: {e}")
             raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
         # UUID is not serializable, so we convert it to a string
         token = create_access_token(data={"sub": str(db_user.id)})
         db_user = users.update_user_token(session, db_user, token)
+        logger.info(f"User {db_user.name} created successfully.")
         return {"message": f"User {db_user.name} created successfully", "token": token}
 
 
@@ -41,11 +47,16 @@ async def register_user(user: UserCreate):
 @users_router.post("/cmd")
 async def register_with_cmd(user: UserCMDCreate):
     with Session(engine) as session:
-        nic, name = users.retrieve_nic(user.cmd_token)
-        db_user = await users.create_cmd_user(session, user, nic, name)
-        token = create_access_token(data={"sub": str(db_user.id)})
-        users.update_user_token(session, db_user, token)
-        return {"message": f"User {name} created successfully", "token": token}
+        try:
+            nic, name = users.retrieve_nic(user.cmd_token)
+            db_user = await users.create_cmd_user(session, user, nic, name)
+            token = create_access_token(data={"sub": str(db_user.id)})
+            users.update_user_token(session, db_user, token)
+            logger.info(f"User {name} created successfully.")
+            return {"message": f"User {name} created successfully.", "token": token}
+        except Exception as e:
+            logger.error(f"Failing to register user with CMD: {e}")
+            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @users_router.post("/login/")
@@ -55,9 +66,11 @@ async def login_with_user_password(
     with Session(engine) as session:
         user = verify_user(session, form_data.username, form_data.password)
         if user is None:
+            logger.error("Invalid username or password.")
             raise BearerException()
         access_token = create_access_token(data={"sub": str(user.id)})
         users.update_user_token(session, user, access_token)
+        logger.info(f"User {user.name} logged in successfully.")
         return Token(access_token=access_token, token_type="Bearer")
 
 
@@ -65,10 +78,16 @@ async def login_with_user_password(
 @users_router.get("/login/cmd")
 async def login_with_cmd(id_token: str) -> Token:
     with Session(engine) as session:
-        nic, name = users.retrieve_nic(id_token)
-        user = users.get_user_by_nic(session, nic)
-        if user is None:
-            raise CMDFailure()
-        access_token = create_access_token(data={"sub": str(user.id)})
-        users.update_user_token(session, user, access_token)
-        return Token(access_token=access_token, token_type="Bearer")
+        try:
+            nic, name = users.retrieve_nic(id_token)
+            user = users.get_user_by_nic(session, nic)
+            if user is None:
+                logger.error("User not found with CMD token.")
+                raise CMDFailure()
+            access_token = create_access_token(data={"sub": str(user.id)})
+            users.update_user_token(session, user, access_token)
+            logger.info(f"User {name} logged in successfully.")
+            return Token(access_token=access_token, token_type="Bearer")
+        except Exception as e:
+            logger.error(f"Failing to login with CMD: {e}")
+            raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
