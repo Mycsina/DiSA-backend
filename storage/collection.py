@@ -279,17 +279,12 @@ def update_collection_name(db: Session, col: Collection, user: User, name: str):
         raise PermissionError("Only the owner can update the collection name.")
     if col.is_deleted():
         raise ValueError("Cannot update a deleted collection.")
-    if col.folder is None:
-        raise ValueError("Collection has no folder.")
-    # if col.folder.name != col.name:
-    #     raise ValueError("Collection name does not match folder name.")
     if not (3 < len(name) < 50):
         raise ValueError("Name must be between 3 and 50 characters.") 
     if col.name == name:
         return col
-    register_event(db, col, user, EventTypes.Update)
     col.name = name
-    db.update(col)
+    db.add(col)
     db.commit()
     return col
     

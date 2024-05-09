@@ -216,7 +216,7 @@ async def filter_documents(
             raise HTTPException(status_code=404, detail="No documents found")
         return documents
 
-@collections_router.put("/{collection_uuid}")
+@collections_router.put("/")
 async def update_collection_name(
     user: Annotated[User, Depends(get_current_user)],
     col_uuid: UUID,
@@ -230,12 +230,5 @@ async def update_collection_name(
         if not col.can_write(user):
             logger.error(f"User {user.email} does not have permission to write to collection {col_uuid}")
             raise HTTPException(status_code=403, detail="You do not have permission to write to this collection")
-        # try:
-        #     collections.update_collection_name(session, col, user, name)
-        #     logger.info(f"Collection {col_uuid} name updated to {name}")
-        #     return {"message": "Collection name updated successfully"}
-        # except ValueError:
-        #     logger.error(f"Collection {col_uuid} name could not be updated")
-        #     raise HTTPException(status_code=400, detail="Collection name could not be updated")
         collections.update_collection_name(session, col, user, name)
         return {"message": "Collection name updated successfully"}
