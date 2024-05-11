@@ -267,21 +267,33 @@ async def filter_documents(
     last_access: datetime | None = None,
 ):
     with Session(engine) as session:
-        raise HTTPException(status_code=501, detail="Not implemented")
-        try:
-            col = collections_router.get_collection_by_id(session, col_uuid, user)
-            if col is None:
-                logger.error("Collection not found.")
-                raise HTTPException(status_code=404, detail="Collection not found")
-            if col.owner != user:
-                logger.error("User is not the owner of this collection.")
-                raise HTTPException(status_code=403, detail="You are not the owner of this Collection")
-            documents = collections_router.filter_documents(session, col, name, max_size, last_access)
-            if documents is None:
-                logger.error("No documents found.")
-                raise HTTPException(status_code=404, detail="No documents found")
-            logger.info("Documents filtered successfully.")
-            return documents
-        except Exception as e:
-            logger.error(f"Failed to filter documents: {e}")
-            raise HTTPException(status_code=500, detail="Internal server error. Failed to filter documents")
+        col = collections_router.get_collection_by_id(session, col_uuid, user)
+        if col is None:
+            logger.error("Collection not found.")
+            raise HTTPException(status_code=404, detail="Collection not found"
+        if col.owner != user:
+            logger.error("User is not the owner of this collection.")
+            raise HTTPException(status_code=403, detail="You are not the owner of this Collection")
+        documents = collections_router.filter_documents(session, col, name, max_size, last_access)
+        if documents is None:
+            logger.error("No documents found.")
+            raise HTTPException(status_code=404, detail="No documents found")
+        logger.info("Documents filtered successfully.")
+        return documents      
+
+@collections_router.put("/")
+async def update_collection_name(
+    user: Annotated[User, Depends(get_current_user)],
+    col_uuid: UUID,
+    name: str
+):
+    with Session(engine) as session:
+        col = collections.get_collection_by_id(session, col_uuid, user)
+        if col is None:
+            logger.error(f"Collection {col_uuid} not found")
+            raise HTTPException(status_code=404, detail="Collection not found")
+        if not col.can_write(user):
+            logger.error(f"User {user.email} does not have permission to write to collection {col_uuid}")
+            raise HTTPException(status_code=403, detail="You do not have permission to write to this collection")
+        collections.update_collection_name(session, col, user, name)
+        return {"message": "Collection name updated successfully"}

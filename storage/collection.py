@@ -273,3 +273,18 @@ def remove_permission(db: Session, col: Collection, user: User, permission: Perm
     db.delete(perm)
     db.commit()
     return True
+
+def update_collection_name(db: Session, col: Collection, user: User, name: str):
+    if col.owner_id != user.id:
+        raise PermissionError("Only the owner can update the collection name.")
+    if col.is_deleted():
+        raise ValueError("Cannot update a deleted collection.")
+    if not (3 < len(name) < 50):
+        raise ValueError("Name must be between 3 and 50 characters.") 
+    if col.name == name:
+        return col
+    col.name = name
+    db.add(col)
+    db.commit()
+    return col
+    
