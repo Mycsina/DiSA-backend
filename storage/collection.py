@@ -280,11 +280,11 @@ def update_collection_name(db: Session, col: Collection, user: User, name: str):
     if col.is_deleted():
         raise ValueError("Cannot update a deleted collection.")
     if not (3 < len(name) < 50):
-        raise ValueError("Name must be between 3 and 50 characters.") 
+        raise ValueError("Name must be between 4 and 50 characters.")
     if col.name == name:
         return col
     col.name = name
     db.add(col)
     db.commit()
     return col
-    
+

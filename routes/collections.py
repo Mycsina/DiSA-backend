@@ -21,7 +21,8 @@ from storage.main import engine
 from utils.security import get_current_user, get_optional_user
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 collections_router = APIRouter(
     prefix="/collections",
@@ -66,13 +67,15 @@ async def download_collection(
             db_user = users.get_user_by_email(session, email)
         if db_user is None:
             logger.error("Anonymous user not found. Likely this email does not have permission.")
-            raise HTTPException(status_code=404, detail="Anonymous user not found. Does this email have permission?")
+            raise HTTPException(
+                status_code=404, detail="Anonymous user not found. Does this email have permission?")
         col = collections.get_collection_by_id(session, col_uuid, db_user)
         if col is None:
             logger.error("Collection not found.")
             raise HTTPException(status_code=404, detail="Collection not found")
         if not col.can_read(db_user):
-            raise HTTPException(status_code=403, detail="You do not have permission to access this collection")
+            raise HTTPException(
+                status_code=403, detail="You do not have permission to access this collection")
         file_path = await collections.download_collection(session, col, db_user)
         return FileResponse(
             file_path,
@@ -91,7 +94,8 @@ async def get_all_collections(
             return collections_list
         except Exception as e:
             logger.error(f"Failed to retrieve all collections: {e}")
-            raise HTTPException(status_code=500, detail="Internal server error. Failed to retrieve all collections.")
+            raise HTTPException(
+                status_code=500, detail="Internal server error. Failed to retrieve all collections.")
 
 
 @collections_router.get("/user")
@@ -100,12 +104,14 @@ async def get_user_collections(
 ) -> Sequence[CollectionInfo]:
     with Session(engine) as session:
         try:
-            user_collections = [CollectionInfo.populate(col) for col in collections.get_collections_by_user(session, user)]
+            user_collections = [CollectionInfo.populate(
+                col) for col in collections.get_collections_by_user(session, user)]
             logger.info("Retrieved user collections successfully.")
             return user_collections
         except Exception as e:
             logger.error(f"Failed to retrieve user collections: {e}")
-            raise HTTPException(status_code=500, detail="Internal server error. Failed to retrieve user collections")
+            raise HTTPException(
+                status_code=500, detail="Internal server error. Failed to retrieve user collections")
 
 
 @collections_router.get("/info")
@@ -117,14 +123,15 @@ async def get_collection(
         try:
             collection = collections.get_collection_by_id(session, col_uuid, user)
             if collection is None:
-                logger.errer("Collection not found.")
+                logger.error("Collection not found.")
                 raise HTTPException(status_code=404, detail="Collection not found")
             result = CollectionInfo.populate(collection)
             logger.info("Retrieved collection information successfully.")
             return result
         except Exception as e:
             logger.error(f"Failed to retrieve collection information: {e}")
-            raise HTTPException(status_code=500, detail="Internal server error. Failed to retrieve collection information")
+            raise HTTPException(
+                status_code=500, detail="Internal server error. Failed to retrieve collection information")
 
 
 @collections_router.get("/hierarchy")
@@ -146,7 +153,8 @@ async def get_collection_hierarchy(
             return folder
         except Exception as e:
             logger.error(f"Failed to retrieve collection hierarchy: {e}")
-            raise HTTPException(status_code=500, detail="Internal server error. Failed to retrieve collection hierarchy")
+            raise HTTPException(
+                status_code=500, detail="Internal server error. Failed to retrieve collection hierarchy")
 
 
 @collections_router.delete("/")
@@ -162,13 +170,15 @@ async def delete_collection(
                 raise HTTPException(status_code=404, detail="Collection not found")
             if not col.can_write(user):
                 logger.error("User does not have permission to write to this collection.")
-                raise HTTPException(status_code=403, detail="You do not have permission to write to this collection")
+                raise HTTPException(
+                    status_code=403, detail="You do not have permission to write to this collection")
             collections.delete_collection(session, col)
             logger.info("Collection deleted successfully.")
             return {"message": "Collection deleted successfully"}
         except Exception as e:
             logger.error(f"Failed to delete collection: {e}")
-            raise HTTPException(status_code=500, detail="Internal server error. Failed to delete collection")
+            raise HTTPException(
+                status_code=500, detail="Internal server error. Failed to delete collection")
 
 
 # TODO: test this
@@ -187,7 +197,8 @@ async def add_permission(
                 raise HTTPException(status_code=404, detail="Collection not found")
             if not col.can_write(user):
                 logger.error("User does not have permission to write to this collection.")
-                raise HTTPException(status_code=403, detail="You do not have permission to write to this collection")
+                raise HTTPException(
+                    status_code=403, detail="You do not have permission to write to this collection")
             db_user = users.get_user_by_email(session, email)
             # If creating for anonymous user
             if db_user is None:
@@ -195,13 +206,15 @@ async def add_permission(
                 db_user = users.create_anonymous_user(session, email)
             if db_user is None:
                 logger.error("Anonymous user could not be created for given email.")
-                raise HTTPException(status_code=404, detail="Anonymous user could not be created for given email.")
+                raise HTTPException(
+                    status_code=404, detail="Anonymous user could not be created for given email.")
             collections.add_permission(session, col, db_user, permission, user)
             logger.info("Permission added successfully.")
             return {"message": "Permission added successfully"}
         except Exception as e:
             logger.error(f"Failed to add permission: {e}")
-            raise HTTPException(status_code=500, detail="Internal server error. Failed to add permission")
+            raise HTTPException(
+                status_code=500, detail="Internal server error. Failed to add permission")
 
 
 # TODO: test this
@@ -218,13 +231,15 @@ async def get_permissions(
                 raise HTTPException(status_code=404, detail="Collection not found")
             if not col.can_write(user):
                 logger.error("User does not have permission to write to this collection.")
-                raise HTTPException(status_code=403, detail="You do not have permission to write to this collection")
+                raise HTTPException(
+                    status_code=403, detail="You do not have permission to write to this collection")
             permissions = collections.convert_user_id_to_email(session, col.permissions)
             logger.info("Retrieved permissions successfully.")
             return permissions
         except Exception as e:
             logger.error(f"Failed to retrieve permissions: {e}")
-            raise HTTPException(status_code=500, detail="Internal server error. Failed to retrieve permissions")
+            raise HTTPException(
+                status_code=500, detail="Internal server error. Failed to retrieve permissions")
 
 
 # TODO: test this
@@ -243,7 +258,8 @@ async def remove_permission(
                 raise HTTPException(status_code=404, detail="Collection not found")
             if not col.can_write(user):
                 logger.error("User does not have permission to write to this collection.")
-                raise HTTPException(status_code=403, detail="You do not have permission to write to this collection")
+                raise HTTPException(
+                    status_code=403, detail="You do not have permission to write to this collection")
             db_user = users.get_user_by_email(session, email)
             if db_user is None:
                 logger.error("User not found.")
@@ -253,7 +269,8 @@ async def remove_permission(
             return {"message": "Permission removed successfully"}
         except Exception as e:
             logger.error(f"Failed to remove permission: {e}")
-            raise HTTPException(status_code=500, detail="Internal server error. Failed to remove permission")
+            raise HTTPException(
+                status_code=500, detail="Internal server error. Failed to remove permission")
 
 
 # TODO - ability to filter documents by type, size or owner
@@ -270,7 +287,7 @@ async def filter_documents(
         col = collections_router.get_collection_by_id(session, col_uuid, user)
         if col is None:
             logger.error("Collection not found.")
-            raise HTTPException(status_code=404, detail="Collection not found"
+            raise HTTPException(status_code=404, detail="Collection not found")
         if col.owner != user:
             logger.error("User is not the owner of this collection.")
             raise HTTPException(status_code=403, detail="You are not the owner of this Collection")
@@ -279,7 +296,8 @@ async def filter_documents(
             logger.error("No documents found.")
             raise HTTPException(status_code=404, detail="No documents found")
         logger.info("Documents filtered successfully.")
-        return documents      
+        return documents
+
 
 @collections_router.put("/")
 async def update_collection_name(
@@ -293,7 +311,9 @@ async def update_collection_name(
             logger.error(f"Collection {col_uuid} not found")
             raise HTTPException(status_code=404, detail="Collection not found")
         if not col.can_write(user):
-            logger.error(f"User {user.email} does not have permission to write to collection {col_uuid}")
-            raise HTTPException(status_code=403, detail="You do not have permission to write to this collection")
+            logger.error(
+                f"User {user.email} does not have permission to write to collection {col_uuid}")
+            raise HTTPException(
+                status_code=403, detail="You do not have permission to write to this collection")
         collections.update_collection_name(session, col, user, name)
         return {"message": "Collection name updated successfully"}
