@@ -263,6 +263,7 @@ def allow_read(db: Session, user: User, col: Collection, creator: User):
     )
     db.add(perm)
     db.commit()
+    logger.debug(f"User {user.id} allowed to read collection {col.id} by creator {creator.id}.")
 
 
 def allow_write(db: Session, user: User, col: Collection, creator: User):
@@ -272,6 +273,7 @@ def allow_write(db: Session, user: User, col: Collection, creator: User):
     )
     db.add(perm)
     db.commit()
+    logger.debug(f"User {user.id} allowed to write collection {col.id} by creator {creator.id}.")
 
 
 def allow_view(db: Session, user: User, col: Collection, creator: User):
@@ -281,6 +283,7 @@ def allow_view(db: Session, user: User, col: Collection, creator: User):
     )
     db.add(perm)
     db.commit()
+    logger.debug(f"User {user.id} allowed to view collection {col.id} by creator {creator.id}.")
 
 
 def convert_user_id_to_email(db: Session, perms: list[CollectionPermission]) -> list[CollectionPermissionInfo]:
@@ -307,10 +310,13 @@ def add_permission(db: Session, col: Collection, user: User, permission: Permiss
     logger.debug(f"Adding permission {permission} to user {user.id} in collection {col.id} by creator {creator.id}.")
     match permission:
         case Permission.read:
+            logger.debug(f"Adding read permission.")
             allow_read(db, user, col, creator)
         case Permission.write:
+            logger.debug(f"Adding write permission.")
             allow_write(db, user, col, creator)
         case Permission.view:
+            logger.debug(f"Adding view permission.")
             allow_view(db, user, col, creator)
 
 
@@ -332,15 +338,19 @@ def remove_permission(db: Session, col: Collection, user: User, permission: Perm
 
 def update_collection_name(db: Session, col: Collection, user: User, name: str):
     if col.owner_id != user.id:
+        logger.error(f"User {user.id} is not the owner of collection {col.id}.")
         raise PermissionError("Only the owner can update the collection name.")
     if col.is_deleted():
+        logger.error(f"Collection {col.id} is deleted.")
         raise ValueError("Cannot update a deleted collection.")
     if not (3 < len(name) < 50):
+        logger.error(f"Name {name} is not between 4 and 50 characters.")
         raise ValueError("Name must be between 4 and 50 characters.")
     if col.name == name:
         return col
     col.name = name
     db.add(col)
     db.commit()
+    logger.debug(f"Collection {col.id} name updated successfully by user {user.id}.")
     return col
 

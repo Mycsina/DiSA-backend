@@ -1,5 +1,6 @@
 import os
 import shutil
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -11,7 +12,6 @@ import routes.documents
 import routes.users
 from storage.main import DB_URL, TEMP_FOLDER, TEST_MODE, engine
 import routes
-
 
 def on_startup():
     if TEST_MODE:
@@ -52,6 +52,20 @@ app.add_middleware(
 
 # TODO: Tighten database constraints
 
+# Logging middleware for every request and response
+logger = logging.getLogger(__name__)
+
+@app.middleware("http")
+async def log_request(request, call_next):
+    logger.info(f"Received request: {request.method} {request.url}")
+    response = await call_next(request)
+    return response
+
+@app.middleware("http")
+async def log_response(request, call_next):
+    response = await call_next(request)
+    logger.info(f"Sent response: {response.status_code}")
+    return response
 
 @app.get("/")
 async def root():
