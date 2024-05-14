@@ -1,3 +1,4 @@
+import logging
 import asyncio
 from sqlmodel import Session
 
@@ -7,6 +8,8 @@ from models.paperless import CollectionPaperless, DocumentPaperless, UserPaperle
 from models.user import User
 import utils.paperless as ppl
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 async def create_user(db: Session, user: User, **kwargs):
     """
@@ -18,6 +21,7 @@ async def create_user(db: Session, user: User, **kwargs):
     correspondent_id = await ppl.create_correspondent(name=name)
     user.paperless = UserPaperless(paperless_id=correspondent_id)
     db.add(user)
+    logger.debug(f"Created user: {user.email}")
 
 
 async def create_collection(db: Session, collection: Collection, **kwargs):
@@ -30,6 +34,7 @@ async def create_collection(db: Session, collection: Collection, **kwargs):
     tag_id = await ppl.create_tag(name=name)
     collection.paperless = CollectionPaperless(paperless_id=tag_id)
     db.add(collection)
+    logger.debug(f"Created collection: {collection}")
 
 
 async def create_document(db: Session, document: EDocumentIntake, collection: Collection, user: User, **kwargs):
@@ -39,6 +44,7 @@ async def create_document(db: Session, document: EDocumentIntake, collection: Co
     For kwargs usage, see the create_document function documentation.
     """
     if collection.paperless is None:
+        logger.error("Given collection has no paperless representation")
         raise ValueError("Given collection has no paperless representation")
     tag_id = collection.paperless.paperless_id
     correspondent_id = user.paperless.paperless_id  # type: ignore
@@ -53,9 +59,11 @@ async def create_document(db: Session, document: EDocumentIntake, collection: Co
     doc_id = await ppl.verify_document(task_id)
     doc = storage.collection.get_document_by_id(db, document.doc_id)
     if doc is None:
+        logger.error(f"Document with id {document.doc_id} not found. Mapping is corrupted.")
         raise ValueError(f"Document with id {document.doc_id} not found. Mapping is corrupted.")
     doc.paperless = DocumentPaperless(paperless_id=doc_id)
     db.add(doc)
+    logger.debug(f"Created document: {doc}")
 
 
 async def create_single_document(
@@ -67,6 +75,7 @@ async def create_single_document(
     For kwargs usage, see the create_document function documentation.
     """
     if collection.paperless is None:
+        logger.error("Given collection has no paperless representation")
         raise ValueError("Given collection has no paperless representation")
     tag_id = collection.paperless.paperless_id
     correspondent_id = user.paperless.paperless_id  # type: ignore
@@ -79,6 +88,7 @@ async def create_single_document(
     doc_id = await ppl.verify_document(task_id)
     document.paperless = DocumentPaperless(paperless_id=doc_id)
     db.add(document)
+    logger.debug(f"Created document: {document}")
 
 
 async def upload_folder(db: Session, mappings: list[EDocumentIntake], collection: Collection, user: User, **kwargs):
@@ -100,10 +110,12 @@ async def download_document(db: Session, doc: Document, **kwargs) -> DocumentInt
     Returned DocumentIntake object has no parent_folder.
     """
     if doc.paperless is None:
+        logger.error("Given document has no paperless representation")
         raise ValueError("Given document has no paperless representation")
     paperless_id = doc.paperless.paperless_id
     content, name = await ppl.download_document(paperless_id)
     # Remove UUID bytes from the content
     content = content[: -len(str(doc.id).encode())]
     name = doc.name
+    logger.debug(f"Downloaded document: {name}")
     return DocumentIntake(name=name, content=content, size=len(content), hash=doc.hash, parent_folder=None)
