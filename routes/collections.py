@@ -1,4 +1,4 @@
-import logging
+import logging, re
 from datetime import datetime
 from typing import Annotated, Sequence
 from uuid import UUID
@@ -28,6 +28,7 @@ collections_router = APIRouter(
     prefix="/collections",
     tags=["collections"],
 )
+
 
 # Create a new collection
 @collections_router.post("/")
@@ -82,6 +83,7 @@ async def download_collection(
             filename=col.name,
         )
 
+
 # TODO - make sure it is necessary (maybe for admin purposes only)
 @collections_router.get("/")
 async def get_all_collections(
@@ -96,6 +98,7 @@ async def get_all_collections(
             logger.error(f"Failed to retrieve all collections: {e}")
             raise HTTPException(
                 status_code=500, detail="Internal server error. Failed to retrieve all collections.")
+
 
 # Get all collections for a user
 @collections_router.get("/user")
@@ -112,19 +115,48 @@ async def get_user_collections(
             logger.error(f"Failed to retrieve user collections: {e}")
             raise HTTPException(
                 status_code=500, detail="Internal server error. Failed to retrieve user collections")
+        
 
-# TODO - maybe unnecessary due to the previous endpoint
-@collections_router.get("/info")
-async def get_collection(
-    user: Annotated[User, Depends(get_current_user)],
+# Get collection information by uuid (presented to user when collection is shared)
+@collections_router.get("/shared")
+async def get_shared_collection(
     col_uuid: UUID,
+    email: str | None = None,
 ) -> CollectionInfo:
+    
+    # Verify email is provided
+    if email is None:
+        logger.error("No authentication method provided when mandatory.")
+        raise HTTPException(status_code=400, detail="You must provide an email to access this collection")
+    
+    # Verify email is valid - please use a regex for this
+    email_regex = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+    if not re.match(email_regex, email):
+        logger.error("Invalid email provided.")
+        raise HTTPException(status_code=400, detail="Invalid email provided")
+
     with Session(engine) as session:
-        collection = collections.get_collection_by_id(session, col_uuid, user)
-        if collection is None:
+        logger.info(f"Retrieving user by email: {email}")
+        db_user = users.get_user_by_email(session, email)
+        if db_user is None:
+            logger.error("User not found. This email was never registered or white-listed.")
+            raise HTTPException(
+                status_code=404, detail="Could not find a user with the given email.")
+        
+        # Get the collection from the database
+        logger.info(f"Retrieving collection {col_uuid}")
+        col = collections.get_collection_by_id(session, col_uuid, db_user)
+        if col is None:
             logger.error("Collection not found.")
             raise HTTPException(status_code=404, detail="Collection not found")
-        result = CollectionInfo.populate(collection)
+        
+        # Verify user has permission to read this collection
+        if not col.can_read(db_user):
+            logger.error("User does not have permission to read this collection.")
+            raise HTTPException(
+                status_code=403, detail="You do not have permission to read this collection")
+
+        result = CollectionInfo.populate(col)
         logger.info("Retrieved collection information successfully.")
         return result
 
@@ -145,6 +177,7 @@ async def get_collection_hierarchy(
             raise HTTPException(status_code=404, detail="Collection hierarchy is corrupted")
         logger.info("Retrieved collection hierarchy successfully.")
         return folder
+
 
 # TODO - test this
 @collections_router.delete("/")
@@ -267,6 +300,7 @@ async def filter_documents(
             raise HTTPException(status_code=404, detail="No documents found")
         logger.info("Documents filtered successfully.")
         return documents
+
 
 # Update collection name
 @collections_router.put("/name")
