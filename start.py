@@ -2,15 +2,18 @@ import os
 import shutil
 import logging
 from contextlib import asynccontextmanager
+from typing import Annotated
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from sqlmodel import SQLModel
+from sqlmodel import SQLModel, Session
 
 import routes.collections
 import routes.documents
 import routes.users
+from models.user import User
 from storage.main import DB_URL, TEMP_FOLDER, TEST_MODE, engine
+from utils.security import get_current_user
 import routes
 
 def on_startup():
@@ -70,6 +73,12 @@ async def log_response(request, call_next):
 @app.get("/")
 async def root():
     return {"message": "Welcome to DiSA"}
+
+
+@app.get("/ping")
+async def ping(user: Annotated[User, Depends(get_current_user)]):
+    with Session(engine) as session:
+        return "pong"
 
 
 app.include_router(routes.users.users_router)
