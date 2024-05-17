@@ -47,7 +47,6 @@ async def create_collection(
         return {"message": "Collection created successfully", "uuid": collection.id}
 
 
-# TODO: test this
 @collections_router.get("/download")
 async def download_collection(
     user: Annotated[User | None, Depends(get_optional_user)],
@@ -178,8 +177,6 @@ async def get_collection_hierarchy(
         logger.info("Retrieved collection hierarchy successfully.")
         return folder
 
-
-# TODO - test this
 @collections_router.delete("/")
 async def delete_collection(
     user: Annotated[User, Depends(get_current_user)],
