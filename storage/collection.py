@@ -1,7 +1,6 @@
 import logging
 import hashlib
 import io
-import json
 import tarfile
 from datetime import datetime
 from typing import Sequence
@@ -35,6 +34,7 @@ from utils.security import verify_manifest
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
 
 def get_collections(db: Session, user: User) -> Sequence[Collection]:
     logger.debug(f"Retrieving collections for user {user.id}.")
@@ -96,7 +96,7 @@ async def create_collection(
     user: User,
     transaction_address: str,
 ) -> Collection:
-    
+
     logger.debug(f"Creating collection {name} for user {user.id}.")
 
     # Create the collection in the database
@@ -126,12 +126,9 @@ async def create_collection(
 
     with open(folder_name + "/hashes.json", "r") as f:
         hashes = f.read()
-    collection.hashes = hashes
+    collection.manifest = hashes
     manifest_hash = hashlib.sha256(hashes.encode()).hexdigest()
     logger.debug("Read signature and hashes successfully.")
-
-    # Parse the hashes.json file
-    hash_json = json.loads(hashes)
 
     # Check manifest hash against the blockchain event
     logger.debug("Verifying manifest hash against the blockchain event.")
@@ -310,18 +307,20 @@ def add_permission(db: Session, col: Collection, user: User, permission: Permiss
     logger.debug(f"Adding permission {permission} to user {user.id} in collection {col.id} by creator {creator.id}.")
     match permission:
         case Permission.read:
-            logger.debug(f"Adding read permission.")
+            logger.debug("Adding read permission.")
             allow_read(db, user, col, creator)
         case Permission.write:
-            logger.debug(f"Adding write permission.")
+            logger.debug("Adding write permission.")
             allow_write(db, user, col, creator)
         case Permission.view:
-            logger.debug(f"Adding view permission.")
+            logger.debug("Adding view permission.")
             allow_view(db, user, col, creator)
 
 
 def remove_permission(db: Session, col: Collection, user: User, permission: Permission, executor: User):
-    logger.debug(f"Removing permission {permission} from user {user.id} in collection {col.id} by executor {executor.id}.")
+    logger.debug(
+        f"Removing permission {permission} from user {user.id} in collection {col.id} by executor {executor.id}."
+    )
     statement = (
         select(CollectionPermission)
         .where(CollectionPermission.collection_id == col.id)
@@ -333,8 +332,11 @@ def remove_permission(db: Session, col: Collection, user: User, permission: Perm
     perm = results.first()
     db.delete(perm)
     db.commit()
-    logger.debug(f"Permission {permission} removed successfully from user {user.id} in collection {col.id} by executor {executor.id}.")
+    logger.debug(
+        f"Permission {permission} removed successfully from user {user.id} in collection {col.id} by executor {executor.id}."  # noqa
+    )
     return True
+
 
 def update_collection_name(db: Session, col: Collection, user: User, name: str):
     if col.owner_id != user.id:
@@ -353,4 +355,3 @@ def update_collection_name(db: Session, col: Collection, user: User, name: str):
     db.commit()
     logger.debug(f"Collection {col.id} name updated successfully by user {user.id}.")
     return col
-

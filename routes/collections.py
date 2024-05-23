@@ -1,9 +1,10 @@
-import logging, re
+import logging
+import re
 from datetime import datetime
 from typing import Annotated, Sequence
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Form
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlmodel import Session
 
@@ -21,8 +22,7 @@ from storage.main import engine
 from utils.security import get_current_user, get_optional_user
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO,
-                    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 collections_router = APIRouter(
     prefix="/collections",
@@ -68,15 +68,13 @@ async def download_collection(
             db_user = users.get_user_by_email(session, email)
         if db_user is None:
             logger.error("Anonymous user not found. Likely this email does not have permission.")
-            raise HTTPException(
-                status_code=404, detail="Anonymous user not found. Does this email have permission?")
+            raise HTTPException(status_code=404, detail="Anonymous user not found. Does this email have permission?")
         col = collections.get_collection_by_id(session, col_uuid, db_user)
         if col is None:
             logger.error("Collection not found.")
             raise HTTPException(status_code=404, detail="Collection not found")
         if not col.can_read(db_user):
-            raise HTTPException(
-                status_code=403, detail="You do not have permission to access this collection")
+            raise HTTPException(status_code=403, detail="You do not have permission to access this collection")
         file_path = await collections.download_collection(session, col, db_user)
         return FileResponse(
             file_path,
@@ -96,8 +94,7 @@ async def get_all_collections(
             return collections_list
         except Exception as e:
             logger.error(f"Failed to retrieve all collections: {e}")
-            raise HTTPException(
-                status_code=500, detail="Internal server error. Failed to retrieve all collections.")
+            raise HTTPException(status_code=500, detail="Internal server error. Failed to retrieve all collections.")
 
 
 # Get all collections for a user
@@ -107,15 +104,15 @@ async def get_user_collections(
 ) -> Sequence[CollectionInfo]:
     with Session(engine) as session:
         try:
-            user_collections = [CollectionInfo.populate(
-                col) for col in collections.get_collections_by_user(session, user)]
+            user_collections = [
+                CollectionInfo.populate(col) for col in collections.get_collections_by_user(session, user)
+            ]
             logger.info("Retrieved user collections successfully.")
             return user_collections
         except Exception as e:
             logger.error(f"Failed to retrieve user collections: {e}")
-            raise HTTPException(
-                status_code=500, detail="Internal server error. Failed to retrieve user collections")
-        
+            raise HTTPException(status_code=500, detail="Internal server error. Failed to retrieve user collections")
+
 
 # Get collection information by uuid (presented to user when collection is shared)
 @collections_router.get("/shared")
@@ -123,12 +120,12 @@ async def get_shared_collection(
     col_uuid: UUID,
     email: str | None = None,
 ) -> CollectionInfo:
-    
+
     # Verify email is provided
     if email is None:
         logger.error("No authentication method provided when mandatory.")
         raise HTTPException(status_code=400, detail="You must provide an email to access this collection")
-    
+
     # Verify email is valid - please use a regex for this
     email_regex = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
     if not re.match(email_regex, email):
@@ -140,21 +137,19 @@ async def get_shared_collection(
         db_user = users.get_user_by_email(session, email)
         if db_user is None:
             logger.error("User not found. This email was never registered or white-listed.")
-            raise HTTPException(
-                status_code=404, detail="Could not find a user with the given email.")
-        
+            raise HTTPException(status_code=404, detail="Could not find a user with the given email.")
+
         # Get the collection from the database
         logger.info(f"Retrieving collection {col_uuid}")
         col = collections.get_collection_by_id(session, col_uuid, db_user)
         if col is None:
             logger.error("Collection not found.")
             raise HTTPException(status_code=404, detail="Collection not found")
-        
+
         # Verify user has permission to read this collection
         if not col.can_read(db_user):
             logger.error("User does not have permission to read this collection.")
-            raise HTTPException(
-                status_code=403, detail="You do not have permission to read this collection")
+            raise HTTPException(status_code=403, detail="You do not have permission to read this collection")
 
         result = CollectionInfo.populate(col)
         logger.info("Retrieved collection information successfully.")
@@ -192,8 +187,7 @@ async def delete_collection(
             raise HTTPException(status_code=404, detail="Collection not found")
         if not col.can_write(user):
             logger.error("User does not have permission to write to this collection.")
-            raise HTTPException(
-                status_code=403, detail="You do not have permission to write to this collection")
+            raise HTTPException(status_code=403, detail="You do not have permission to write to this collection")
         collections.delete_collection(session, col)
         logger.info("Collection deleted successfully.")
         return {"message": "Collection deleted successfully"}
@@ -214,8 +208,7 @@ async def add_permission(
             raise HTTPException(status_code=404, detail="Collection not found")
         if not col.can_write(user):
             logger.error("User does not have permission to write to this collection.")
-            raise HTTPException(
-                status_code=403, detail="You do not have permission to write to this collection")
+            raise HTTPException(status_code=403, detail="You do not have permission to write to this collection")
         db_user = users.get_user_by_email(session, email)
         # If creating for anonymous user
         if db_user is None:
@@ -223,8 +216,7 @@ async def add_permission(
             db_user = users.create_anonymous_user(session, email)
         if db_user is None:
             logger.error("Anonymous user could not be created for given email.")
-            raise HTTPException(
-                status_code=404, detail="Anonymous user could not be created for given email.")
+            raise HTTPException(status_code=404, detail="Anonymous user could not be created for given email.")
         collections.add_permission(session, col, db_user, permission, user)
         logger.info("Permission added successfully.")
         return {"message": "Permission added successfully"}
@@ -243,8 +235,7 @@ async def get_permissions(
             raise HTTPException(status_code=404, detail="Collection not found")
         if not col.can_write(user):
             logger.error("User does not have permission to write to this collection.")
-            raise HTTPException(
-                status_code=403, detail="You do not have permission to write to this collection")
+            raise HTTPException(status_code=403, detail="You do not have permission to write to this collection")
         permissions = collections.convert_user_id_to_email(session, col.permissions)
         logger.info("Retrieved permissions successfully.")
         return permissions
@@ -265,8 +256,7 @@ async def remove_permission(
             raise HTTPException(status_code=404, detail="Collection not found")
         if not col.can_write(user):
             logger.error("User does not have permission to write to this collection.")
-            raise HTTPException(
-                status_code=403, detail="You do not have permission to write to this collection")
+            raise HTTPException(status_code=403, detail="You do not have permission to write to this collection")
         db_user = users.get_user_by_email(session, email)
         if db_user is None:
             logger.error("User not found.")
@@ -287,14 +277,14 @@ async def filter_documents(
     last_access: datetime | None = None,
 ):
     with Session(engine) as session:
-        col = collections_router.get_collection_by_id(session, col_uuid, user)
+        col = collections.get_collection_by_id(session, col_uuid, user)
         if col is None:
             logger.error("Collection not found.")
             raise HTTPException(status_code=404, detail="Collection not found")
         if col.owner != user:
             logger.error("User is not the owner of this collection.")
             raise HTTPException(status_code=403, detail="You are not the owner of this Collection")
-        documents = collections_router.filter_documents(session, col, name, max_size, last_access)
+        documents = collections.filter_documents(session, col, name, max_size, last_access)
         if documents is None:
             logger.error("No documents found.")
             raise HTTPException(status_code=404, detail="No documents found")
@@ -304,20 +294,14 @@ async def filter_documents(
 
 # Update collection name
 @collections_router.put("/name")
-async def update_collection_name(
-    user: Annotated[User, Depends(get_current_user)],
-    col_uuid: UUID,
-    name: str
-):
+async def update_collection_name(user: Annotated[User, Depends(get_current_user)], col_uuid: UUID, name: str):
     with Session(engine) as session:
         col = collections.get_collection_by_id(session, col_uuid, user)
         if col is None:
             logger.error(f"Collection {col_uuid} not found")
             raise HTTPException(status_code=404, detail="Collection not found")
         if not col.can_write(user):
-            logger.error(
-                f"User {user.email} does not have permission to write to collection {col_uuid}")
-            raise HTTPException(
-                status_code=403, detail="You do not have permission to write to this collection")
+            logger.error(f"User {user.email} does not have permission to write to collection {col_uuid}")
+            raise HTTPException(status_code=403, detail="You do not have permission to write to this collection")
         collections.update_collection_name(session, col, user, name)
         return {"message": "Collection name updated successfully"}
