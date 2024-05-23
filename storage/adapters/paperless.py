@@ -68,36 +68,6 @@ async def create_document(db: Session, document: EDocumentIntake, collection: Co
     logger.debug(f"Created document: {doc}")
 
 
-async def create_single_document(
-    db: Session,
-    content: bytes,
-    document: Document,
-    collection: Collection,
-    user: User,
-    **kwargs,
-):
-    """
-    Create a document in Paperless-ngx.
-
-    For kwargs usage, see the create_document function documentation.
-    """
-    if collection.paperless is None:
-        logger.error("Given collection has no paperless representation")
-        raise ValueError("Given collection has no paperless representation")
-    tag_id = collection.paperless.paperless_id
-    correspondent_id = user.paperless.paperless_id  # type: ignore
-    task_id = await ppl.create_document(
-        title=document.name,
-        document=content,
-        correspondent=correspondent_id,
-        tags=tag_id,
-    )
-    doc_id = await ppl.verify_document(task_id)
-    document.paperless = DocumentPaperless(paperless_id=doc_id)
-    db.add(document)
-    logger.debug(f"Created document: {document}")
-
-
 async def upload_folder(
     db: Session,
     mappings: list[EDocumentIntake],

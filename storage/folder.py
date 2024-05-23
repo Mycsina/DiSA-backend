@@ -9,7 +9,7 @@ from models.event import EventTypes
 from models.folder import Folder, FolderIntake
 from models.user import User
 from storage.event import register_event
-from storage.paperless import download_document
+from storage.main import store
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -50,7 +50,7 @@ async def populate_documents(db: Session, root: FolderIntake) -> FolderIntake:
             new_root.children.append(folder)
         # TODO: Tied to the wrong implementation above, but might as well take advantage of it
         elif isinstance(child, Document):
-            new_doc = await download_document(db, child)
+            new_doc = await store.download_document(db, child)
             new_root.children.append(new_doc)
         elif isinstance(child, DocumentIntake):
             logger.error("DocumentIntake objects should not be in the root of the FolderIntake structure.")

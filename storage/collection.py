@@ -8,7 +8,6 @@ from uuid import UUID
 
 from sqlmodel import Session, select
 
-import storage.paperless as ppl
 from models.collection import (
     Collection,
     CollectionPermission,
@@ -28,7 +27,7 @@ from storage.folder import (
     walk_folder,
     write_folder,
 )
-from storage.main import TEMP_FOLDER
+from storage.main import store, TEMP_FOLDER
 from storage.user import get_user_by_id
 from utils.security import verify_manifest
 
@@ -108,7 +107,7 @@ async def create_collection(
     logger.debug(f"Collection '{name}' created in the database.")
 
     # Create the collection in Paperless-ngx
-    await ppl.create_collection(db, collection, name=name)
+    await store.create_collection(db, collection, name=name)
     logger.debug(f"Collection '{name}' created in Paperless-ngx.")
 
     # Extract tarfile containing signature, manifest and files
@@ -142,7 +141,7 @@ async def create_collection(
     mappings = create_folder(db, root, db_folder)
     # Ingest the documents into Paperless-ngx
     logger.debug("Uploading documents into Paperless-ngx.")
-    await ppl.upload_folder(db, mappings, collection, user)
+    await store.upload_folder(db, mappings, collection, user)
 
     db.add(collection)
     db.commit()
