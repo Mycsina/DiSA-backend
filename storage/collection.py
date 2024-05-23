@@ -1,6 +1,6 @@
-import logging
 import hashlib
 import io
+import logging
 import tarfile
 from datetime import datetime
 from typing import Sequence
@@ -205,7 +205,11 @@ def search_documents(db: Session, col: Collection, name: str) -> list[Document] 
 
 
 def filter_documents(
-    db: Session, col: Collection, name: str | None, max_size: int | None, last_access: datetime | None
+    db: Session,
+    col: Collection,
+    name: str | None,
+    max_size: int | None,
+    last_access: datetime | None,
 ):
     logger.debug(f"Filtering documents in collection {col.id}.")
     statement = select(Document).where(Document.collection_id == col.id)
@@ -256,7 +260,10 @@ async def download_collection(db: Session, col: Collection, user: User) -> str:
 def allow_read(db: Session, user: User, col: Collection, creator: User):
     logger.debug(f"Allowing user {user.id} to read collection {col.id} by creator {creator.id}.")
     perm = CollectionPermission(
-        user_id=user.id, collection_id=col.id, permission=Permission.read, creator_id=creator.id
+        user_id=user.id,
+        collection_id=col.id,
+        permission=Permission.read,
+        creator_id=creator.id,
     )
     db.add(perm)
     db.commit()
@@ -266,7 +273,10 @@ def allow_read(db: Session, user: User, col: Collection, creator: User):
 def allow_write(db: Session, user: User, col: Collection, creator: User):
     logger.debug(f"Allowing user {user.id} to write collection {col.id} by creator {creator.id}.")
     perm = CollectionPermission(
-        user_id=user.id, collection_id=col.id, permission=Permission.write, creator_id=creator.id
+        user_id=user.id,
+        collection_id=col.id,
+        permission=Permission.write,
+        creator_id=creator.id,
     )
     db.add(perm)
     db.commit()
@@ -276,7 +286,10 @@ def allow_write(db: Session, user: User, col: Collection, creator: User):
 def allow_view(db: Session, user: User, col: Collection, creator: User):
     logger.debug(f"Allowing user {user.id} to view collection {col.id} by creator {creator.id}.")
     perm = CollectionPermission(
-        user_id=user.id, collection_id=col.id, permission=Permission.view, creator_id=creator.id
+        user_id=user.id,
+        collection_id=col.id,
+        permission=Permission.view,
+        creator_id=creator.id,
     )
     db.add(perm)
     db.commit()

@@ -1,15 +1,17 @@
-import logging
 import asyncio
+import logging
+
 from sqlmodel import Session
 
 import storage.collection
+import utils.paperless as ppl
 from models.collection import Collection, Document, DocumentIntake, EDocumentIntake
 from models.paperless import CollectionPaperless, DocumentPaperless, UserPaperless
 from models.user import User
-import utils.paperless as ppl
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
 
 async def create_user(db: Session, user: User, **kwargs):
     """
@@ -67,7 +69,12 @@ async def create_document(db: Session, document: EDocumentIntake, collection: Co
 
 
 async def create_single_document(
-    db: Session, content: bytes, document: Document, collection: Collection, user: User, **kwargs
+    db: Session,
+    content: bytes,
+    document: Document,
+    collection: Collection,
+    user: User,
+    **kwargs,
 ):
     """
     Create a document in Paperless-ngx.
@@ -91,7 +98,13 @@ async def create_single_document(
     logger.debug(f"Created document: {document}")
 
 
-async def upload_folder(db: Session, mappings: list[EDocumentIntake], collection: Collection, user: User, **kwargs):
+async def upload_folder(
+    db: Session,
+    mappings: list[EDocumentIntake],
+    collection: Collection,
+    user: User,
+    **kwargs,
+):
     """
     Create all documents in Paperless-ngx.
     """

@@ -1,5 +1,5 @@
-import logging
 import hashlib
+import logging
 import os
 
 from sqlmodel import Session
@@ -13,6 +13,7 @@ from storage.paperless import download_document
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
 
 def recreate_structure(db: Session, root: Folder, user: User) -> FolderIntake:
     """Recreate the FolderIntake structure from the structure in the database."""
@@ -113,7 +114,11 @@ def create_folder(db: Session, root: FolderIntake, db_root: Folder) -> list[EDoc
         child = children.pop()
         parent = parents.pop()
         if isinstance(child, FolderIntake):
-            db_child = Folder(name=child.name, collection_id=db_root.collection.id, parent_id=parent.id)
+            db_child = Folder(
+                name=child.name,
+                collection_id=db_root.collection.id,
+                parent_id=parent.id,
+            )
             parent.sub_folders.append(db_child)
             db.add(db_child)
             parents.extend([db_child] * len(child.children))

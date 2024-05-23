@@ -9,6 +9,7 @@ load_dotenv(override=True)
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
+
 def must_getenv(var_name: str) -> str:
     value = os.getenv(var_name)
     if value is None:

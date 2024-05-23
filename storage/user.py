@@ -1,17 +1,18 @@
 import logging
-from typing import Tuple
 import time
+from typing import Tuple
 from uuid import UUID
 
 import requests
 from sqlmodel import Session, select
 
-from models.user import User, UserCMDCreate, UserCreate
 import storage.paperless as ppl
+from models.user import User, UserCMDCreate, UserCreate
 from utils.exceptions import CMDFailure
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
 
 async def create_user(db: Session, user: UserCreate) -> User:
     logger.debug(f"Creating user: {user.email}")

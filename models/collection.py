@@ -38,10 +38,12 @@ class Document(DocumentBase, table=True):
     folder: Folder = Relationship(back_populates="documents")
     collection: "Collection" = Relationship(back_populates="documents")
     previous: Optional["Update"] = Relationship(
-        back_populates="new", sa_relationship_kwargs={"foreign_keys": "Update.updated_id"}
+        back_populates="new",
+        sa_relationship_kwargs={"foreign_keys": "Update.updated_id"},
     )
     next: Optional["Update"] = Relationship(
-        back_populates="old", sa_relationship_kwargs={"foreign_keys": "Update.previous_id"}
+        back_populates="old",
+        sa_relationship_kwargs={"foreign_keys": "Update.previous_id"},
     )
     paperless: Optional["DocumentPaperless"] = Relationship(back_populates="document")
 
@@ -49,7 +51,10 @@ class Document(DocumentBase, table=True):
         return any([event.type == EventTypes.Delete for event in self.events])
 
     def last_access(self) -> datetime:
-        return max([event.timestamp for event in self.events if event.type == EventTypes.Access], default=datetime.max)
+        return max(
+            [event.timestamp for event in self.events if event.type == EventTypes.Access],
+            default=datetime.max,
+        )
 
 
 class DocumentIntake(DocumentBase):
@@ -113,7 +118,8 @@ class Collection(CollectionBase, table=True):
 
     def last_access(self) -> datetime:
         return max(
-            [event.timestamp for event in self.events if event.type == EventTypes.Access], default=self.created()
+            [event.timestamp for event in self.events if event.type == EventTypes.Access],
+            default=self.created(),
         )
 
     def can_read(self, user: User) -> bool:
