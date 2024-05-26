@@ -9,11 +9,11 @@ from passlib.context import CryptContext
 from pydantic import BaseModel
 from sqlmodel import Session
 
-from utils.BlockchainService import BlockchainService
-from utils.exceptions import BearerException
 from models.user import User
 from storage.main import engine
 from storage.user import get_user_by_email, get_user_by_id
+from utils.BlockchainService import BlockchainService
+from utils.exceptions import BearerException
 
 load_dotenv()
 
@@ -56,7 +56,10 @@ def verify_user(db: Session, email: str, password: str) -> User | None:
 
 
 # https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/#handle-jwt-tokens
-def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)):
+def create_access_token(
+    data: dict,
+    expires_delta: timedelta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta

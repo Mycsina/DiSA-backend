@@ -1,6 +1,6 @@
-import logging
 import hashlib
 import io
+import logging
 import tarfile
 from datetime import datetime
 from typing import Sequence
@@ -8,7 +8,6 @@ from uuid import UUID
 
 from sqlmodel import Session, select
 
-import storage.paperless as ppl
 from models.collection import (
     Collection,
     CollectionPermission,
@@ -28,7 +27,7 @@ from storage.folder import (
     walk_folder,
     write_folder,
 )
-from storage.main import TEMP_FOLDER
+from storage.main import store, TEMP_FOLDER
 from storage.user import get_user_by_id
 from utils.security import verify_manifest
 
@@ -108,7 +107,7 @@ async def create_collection(
     logger.debug(f"Collection '{name}' created in the database.")
 
     # Create the collection in Paperless-ngx
-    await ppl.create_collection(db, collection, name=name)
+    await store.create_collection(db, collection, name=name)
     logger.debug(f"Collection '{name}' created in Paperless-ngx.")
 
     # Extract tarfile containing signature, manifest and files
@@ -142,7 +141,7 @@ async def create_collection(
     mappings = create_folder(db, root, db_folder)
     # Ingest the documents into Paperless-ngx
     logger.debug("Uploading documents into Paperless-ngx.")
-    await ppl.upload_folder(db, mappings, collection, user)
+    await store.upload_folder(db, mappings, collection, user)
 
     db.add(collection)
     db.commit()
@@ -205,7 +204,11 @@ def search_documents(db: Session, col: Collection, name: str) -> list[Document] 
 
 
 def filter_documents(
-    db: Session, col: Collection, name: str | None, max_size: int | None, last_access: datetime | None
+    db: Session,
+    col: Collection,
+    name: str | None,
+    max_size: int | None,
+    last_access: datetime | None,
 ):
     logger.debug(f"Filtering documents in collection {col.id}.")
     statement = select(Document).where(Document.collection_id == col.id)
@@ -256,7 +259,10 @@ async def download_collection(db: Session, col: Collection, user: User) -> str:
 def allow_read(db: Session, user: User, col: Collection, creator: User):
     logger.debug(f"Allowing user {user.id} to read collection {col.id} by creator {creator.id}.")
     perm = CollectionPermission(
-        user_id=user.id, collection_id=col.id, permission=Permission.read, creator_id=creator.id
+        user_id=user.id,
+        collection_id=col.id,
+        permission=Permission.read,
+        creator_id=creator.id,
     )
     db.add(perm)
     db.commit()
@@ -266,7 +272,10 @@ def allow_read(db: Session, user: User, col: Collection, creator: User):
 def allow_write(db: Session, user: User, col: Collection, creator: User):
     logger.debug(f"Allowing user {user.id} to write collection {col.id} by creator {creator.id}.")
     perm = CollectionPermission(
-        user_id=user.id, collection_id=col.id, permission=Permission.write, creator_id=creator.id
+        user_id=user.id,
+        collection_id=col.id,
+        permission=Permission.write,
+        creator_id=creator.id,
     )
     db.add(perm)
     db.commit()
@@ -276,7 +285,10 @@ def allow_write(db: Session, user: User, col: Collection, creator: User):
 def allow_view(db: Session, user: User, col: Collection, creator: User):
     logger.debug(f"Allowing user {user.id} to view collection {col.id} by creator {creator.id}.")
     perm = CollectionPermission(
-        user_id=user.id, collection_id=col.id, permission=Permission.view, creator_id=creator.id
+        user_id=user.id,
+        collection_id=col.id,
+        permission=Permission.view,
+        creator_id=creator.id,
     )
     db.add(perm)
     db.commit()

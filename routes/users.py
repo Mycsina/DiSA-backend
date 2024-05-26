@@ -7,15 +7,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session
 
 import storage.user as users
-from utils.exceptions import BearerException, CMDFailure
 from models.user import UserCMDCreate, UserCreate
-from utils.security import (
-    Token,
-    create_access_token,
-    password_hash,
-    verify_user,
-)
 from storage.main import engine
+from utils.exceptions import BearerException, CMDFailure
+from utils.security import Token, create_access_token, password_hash, verify_user
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")

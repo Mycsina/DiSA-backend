@@ -7,8 +7,8 @@ from sqlmodel import Field, Relationship, SQLModel
 if TYPE_CHECKING:
     from models.collection import Collection, CollectionPermission
     from models.event import CollectionEvent, DocumentEvent
-    from models.update import Update
     from models.paperless import UserPaperless
+    from models.update import Update
 
 
 class UserRole(str, Enum):

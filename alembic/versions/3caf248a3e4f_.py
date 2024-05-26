@@ -5,16 +5,17 @@ Revises: 1f04137ceed7
 Create Date: 2024-04-29 16:37:28.795761
 
 """
+
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
 import sqlmodel
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '3caf248a3e4f'
-down_revision: Union[str, None] = '1f04137ceed7'
+revision: str = "3caf248a3e4f"
+down_revision: Union[str, None] = "1f04137ceed7"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

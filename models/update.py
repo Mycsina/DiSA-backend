@@ -1,7 +1,8 @@
-from typing import TYPE_CHECKING
-from sqlmodel import Field, Relationship, SQLModel
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
+
+from sqlmodel import Field, Relationship, SQLModel
 
 from models.user import User
 
@@ -18,6 +19,10 @@ class Update(SQLModel, table=True):
 
     user: User = Relationship(back_populates="updates")
     old: "Document" = Relationship(
-        back_populates="previous", sa_relationship_kwargs={"foreign_keys": "Update.previous_id"}
+        back_populates="previous",
+        sa_relationship_kwargs={"foreign_keys": "Update.previous_id"},
     )
-    new: "Document" = Relationship(back_populates="next", sa_relationship_kwargs={"foreign_keys": "Update.updated_id"})
+    new: "Document" = Relationship(
+        back_populates="next",
+        sa_relationship_kwargs={"foreign_keys": "Update.updated_id"},
+    )

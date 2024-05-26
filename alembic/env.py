@@ -7,9 +7,9 @@ from alembic import context
 from models.collection import *
 from models.event import *
 from models.folder import *
+from models.paperless import *
 from models.update import *
 from models.user import *
-from models.paperless import *
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

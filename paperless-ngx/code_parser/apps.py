@@ -1,6 +1,5 @@
-from django.apps import AppConfig
-
 from c.signals import code_consumer_declaration
+from django.apps import AppConfig
 
 
 class PaperlessTesseractConfig(AppConfig):

@@ -1,5 +1,5 @@
-import logging
 import hashlib
+import logging
 import os
 
 from sqlmodel import Session
@@ -9,10 +9,11 @@ from models.event import EventTypes
 from models.folder import Folder, FolderIntake
 from models.user import User
 from storage.event import register_event
-from storage.paperless import download_document
+from storage.main import store
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
 
 def recreate_structure(db: Session, root: Folder, user: User) -> FolderIntake:
     """Recreate the FolderIntake structure from the structure in the database."""
@@ -49,7 +50,7 @@ async def populate_documents(db: Session, root: FolderIntake) -> FolderIntake:
             new_root.children.append(folder)
         # TODO: Tied to the wrong implementation above, but might as well take advantage of it
         elif isinstance(child, Document):
-            new_doc = await download_document(db, child)
+            new_doc = await store.download_document(db, child)
             new_root.children.append(new_doc)
         elif isinstance(child, DocumentIntake):
             logger.error("DocumentIntake objects should not be in the root of the FolderIntake structure.")
@@ -113,7 +114,11 @@ def create_folder(db: Session, root: FolderIntake, db_root: Folder) -> list[EDoc
         child = children.pop()
         parent = parents.pop()
         if isinstance(child, FolderIntake):
-            db_child = Folder(name=child.name, collection_id=db_root.collection.id, parent_id=parent.id)
+            db_child = Folder(
+                name=child.name,
+                collection_id=db_root.collection.id,
+                parent_id=parent.id,
+            )
             parent.sub_folders.append(db_child)
             db.add(db_child)
             parents.extend([db_child] * len(child.children))

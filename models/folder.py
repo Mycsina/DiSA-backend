@@ -53,7 +53,8 @@ class Folder(SQLModel, table=True):
     parent_id: UUID | None = Field(default=None, foreign_key="folder.id")
 
     parent: Optional["Folder"] = Relationship(
-        back_populates="sub_folders", sa_relationship_kwargs=dict(remote_side="Folder.id")
+        back_populates="sub_folders",
+        sa_relationship_kwargs=dict(remote_side="Folder.id"),
     )
     sub_folders: list["Folder"] = Relationship(back_populates="parent")
 

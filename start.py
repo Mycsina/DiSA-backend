@@ -1,20 +1,21 @@
+import logging
 import os
 import shutil
-import logging
 from contextlib import asynccontextmanager
 from typing import Annotated
 
-from fastapi import FastAPI, Depends
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlmodel import SQLModel, Session
+from sqlmodel import SQLModel
 
+import routes
 import routes.collections
 import routes.documents
 import routes.users
 from models.user import User
 from storage.main import DB_URL, TEMP_FOLDER, TEST_MODE, engine
 from utils.security import get_current_user
-import routes
+
 
 def on_startup():
     if TEST_MODE:
@@ -58,17 +59,20 @@ app.add_middleware(
 # Logging middleware for every request and response
 logger = logging.getLogger(__name__)
 
+
 @app.middleware("http")
 async def log_request(request, call_next):
     logger.info(f"Received request: {request.method} {request.url}")
     response = await call_next(request)
     return response
 
+
 @app.middleware("http")
 async def log_response(request, call_next):
     response = await call_next(request)
     logger.info(f"Sent response: {response.status_code}")
     return response
+
 
 @app.get("/")
 async def root():
@@ -77,8 +81,7 @@ async def root():
 
 @app.get("/ping")
 async def ping(user: Annotated[User, Depends(get_current_user)]):
-    with Session(engine) as session:
-        return "pong"
+    return "pong"
 
 
 app.include_router(routes.users.users_router)

@@ -1,17 +1,18 @@
 import logging
-from typing import Tuple
 import time
+from typing import Tuple
 from uuid import UUID
 
 import requests
 from sqlmodel import Session, select
 
 from models.user import User, UserCMDCreate, UserCreate
-import storage.paperless as ppl
+from storage.main import store
 from utils.exceptions import CMDFailure
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
 
 async def create_user(db: Session, user: UserCreate) -> User:
     logger.debug(f"Creating user: {user.email}")
@@ -22,7 +23,7 @@ async def create_user(db: Session, user: UserCreate) -> User:
         nic=user.nic,
     )
     db.add(db_user)
-    await ppl.create_user(db, db_user)
+    await store.create_user(db, db_user)
     db.commit()
     logger.debug(f"Created user successfully: {user.email}")
     return db_user
@@ -40,7 +41,7 @@ def create_anonymous_user(db: Session, email: str) -> User:
 async def create_cmd_user(db: Session, user: UserCMDCreate, nic: str, name: str) -> User:
     logger.debug(f"Creating CMD user: {user.email}")
     db_user = User(email=user.email, nic=nic, name=name)
-    await ppl.create_user(db, db_user)
+    await store.create_user(db, db_user)
     db.commit()
     logger.debug(f"Created CMD user successfully: {user.email}")
     return db_user

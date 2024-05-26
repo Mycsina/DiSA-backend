@@ -1,15 +1,17 @@
-import logging
 import asyncio
+import logging
+
 from sqlmodel import Session
 
 import storage.collection
+import utils.paperless as ppl
 from models.collection import Collection, Document, DocumentIntake, EDocumentIntake
 from models.paperless import CollectionPaperless, DocumentPaperless, UserPaperless
 from models.user import User
-import utils.paperless as ppl
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
 
 async def create_user(db: Session, user: User, **kwargs):
     """
@@ -66,32 +68,13 @@ async def create_document(db: Session, document: EDocumentIntake, collection: Co
     logger.debug(f"Created document: {doc}")
 
 
-async def create_single_document(
-    db: Session, content: bytes, document: Document, collection: Collection, user: User, **kwargs
+async def upload_folder(
+    db: Session,
+    mappings: list[EDocumentIntake],
+    collection: Collection,
+    user: User,
+    **kwargs,
 ):
-    """
-    Create a document in Paperless-ngx.
-
-    For kwargs usage, see the create_document function documentation.
-    """
-    if collection.paperless is None:
-        logger.error("Given collection has no paperless representation")
-        raise ValueError("Given collection has no paperless representation")
-    tag_id = collection.paperless.paperless_id
-    correspondent_id = user.paperless.paperless_id  # type: ignore
-    task_id = await ppl.create_document(
-        title=document.name,
-        document=content,
-        correspondent=correspondent_id,
-        tags=tag_id,
-    )
-    doc_id = await ppl.verify_document(task_id)
-    document.paperless = DocumentPaperless(paperless_id=doc_id)
-    db.add(document)
-    logger.debug(f"Created document: {document}")
-
-
-async def upload_folder(db: Session, mappings: list[EDocumentIntake], collection: Collection, user: User, **kwargs):
     """
     Create all documents in Paperless-ngx.
     """

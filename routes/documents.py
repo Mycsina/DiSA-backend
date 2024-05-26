@@ -7,10 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlmodel import Session
 
 import storage.collection as collections
-from utils.exceptions import IntegrityBreach
 from models.user import User
-from utils.security import get_current_user
 from storage.main import engine
+from utils.exceptions import IntegrityBreach
+from utils.security import get_current_user
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -44,14 +44,20 @@ async def update_document(
                 raise HTTPException(status_code=404, detail="Document not in the specified collection")
             if not col.can_write(user):
                 logger.error(f"This user does not have permission to write to this collection.")
-                raise HTTPException(status_code=403, detail="You do not have permission to write to this collection")
+                raise HTTPException(
+                    status_code=403,
+                    detail="You do not have permission to write to this collection",
+                )
             data = await file.read()
             collections.update_document(session, user, col, doc, data)
             if doc.next is None:
                 logger.error(f"Document update failed.")
                 raise HTTPException(status_code=500, detail="Document update failed")
             logger.info("Document updated successfully.")
-            return {"message": "Document updated successfully", "update_uuid": doc.next.id}
+            return {
+                "message": "Document updated successfully",
+                "update_uuid": doc.next.id,
+            }
         except IntegrityError:
             logger.error("Document update failed due to an integrity error.")
             raise IntegrityBreach("Document update failed. Verify the document hasn't already been updated")
@@ -61,9 +67,6 @@ async def update_document(
         except Exception as e:
             logger.error(f"An unexpected error ocurred: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
-        
-            
-            
 
 
 @documents_router.delete("/documents/")
@@ -81,7 +84,10 @@ async def delete_document(
                 raise HTTPException(status_code=404, detail="Collection not found")
             if not col.can_write(user):
                 logger.error("The user does not have permission tp write to this collection.")
-                raise HTTPException(status_code=403, detail="You do not have permission to write to this collection")
+                raise HTTPException(
+                    status_code=403,
+                    detail="You do not have permission to write to this collection",
+                )
             if doc is None:
                 logger.error("Document not found.")
                 raise HTTPException(status_code=404, detail="Document not found")
@@ -143,7 +149,10 @@ async def get_document_history(
                 raise HTTPException(status_code=404, detail="Collection not found")
             if not col.can_read(user):
                 logger.error("This user does not have permission to read this collection.")
-                raise HTTPException(status_code=403, detail="You do not have permission to read this collection")
+                raise HTTPException(
+                    status_code=403,
+                    detail="You do not have permission to read this collection",
+                )
             if doc is None:
                 logger.error("Document not found.")
                 raise HTTPException(status_code=404, detail="Document not found")
