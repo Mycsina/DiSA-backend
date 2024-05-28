@@ -162,6 +162,7 @@ class CollectionInfo(CollectionBase):
     events: List[CollectionEvent]
     created: datetime
     last_access: datetime
+    manifest: str | None = None
 
     @staticmethod
     def populate(collection: Collection) -> "CollectionInfo":
@@ -175,5 +176,6 @@ class CollectionInfo(CollectionBase):
             events=collection.events,
             created=collection.created(),
             last_access=collection.last_access(),
+            manifest=collection.manifest,
         )
         return self
