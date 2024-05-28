@@ -1,7 +1,8 @@
+import uuid
 import pytest
 from httpx import AsyncClient
 from fastapi import FastAPI
-from fastapi import File, Form
+from fastapi import File, Form, Document
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel, create_engine, Session
 
@@ -186,15 +187,15 @@ async def test_get_collection_hierarchy(client, get_test_db):
         db.commit()
 
         # Create a hierarchy of folders for the collection
-        root_folder = Folder(name="Root", collection_id=test_collection.id)
+        root_folder = FolderIntake(name="Root", collection_id=test_collection.id)
         db.add(root_folder)
         db.commit()
 
-        subfolder1 = Folder(name="Subfolder1", collection_id=test_collection.id, parent_id=root_folder.id)
+        subfolder1 = FolderIntake(name="Subfolder1", collection_id=test_collection.id, parent_id=root_folder.id)
         db.add(subfolder1)
         db.commit()
 
-        subfolder2 = Folder(name="Subfolder2", collection_id=test_collection.id, parent_id=root_folder.id)
+        subfolder2 = FolderIntake(name="Subfolder2", collection_id=test_collection.id, parent_id=root_folder.id)
         db.add(subfolder2)
         db.commit()
 
