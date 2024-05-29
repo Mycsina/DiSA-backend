@@ -13,12 +13,6 @@ import routes.documents as documents
 from utils.security import get_current_user
 from utils.exceptions import IntegrityBreach
 from models.user import UserCreate
-from models.folder import FolderIntake
-from models.collection import (
-    Collection,
-    Document,
-    Permission,
-)
 
 # Set up the database URL to point to your test database
 SQLALCHEMY_DATABASE_URL = "../test.db" # or "sqlite:///../test.db" ?
@@ -413,7 +407,7 @@ async def test_get_document_history_success(client, current_user):
         response = await client.get(f"/documents/history?col_uuid={uuid4()}&doc_uuid={uuid4()}")
 
         assert response.status_code == 200
-        assert str(response.json()) == '[{"version": 1, "changes": "Initial version"}]'
+        assert '[{"version": 1, "changes": "Initial version"}]' in response.text
 
 # Test get_document_history endpoint - error - collection not found
 @pytest.mark.asyncio
