@@ -62,6 +62,12 @@ It comes with:
 }
 ```
 
+## Running the tests
+You can run the tests by running the following command:
+```bash
+  poetry run pytest
+```
+
 # Development
 ## Migrations
 To create a migration, run the following command:
