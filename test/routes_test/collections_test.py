@@ -4,6 +4,7 @@ import uuid
 import os
 from unittest.mock import MagicMock, Mock, patch
 
+from models.folder import Folder
 from models.user import User, UserRole
 import pytest
 from fastapi import FastAPI, UploadFile
@@ -97,6 +98,8 @@ async def test_create_collection(temp_file, client):
 async def test_download_collection(mock_get_user_by_email, mock_get_collection_by_id, client):
     user = User(id=1, name="test_user", email="example@email.com", role=UserRole.USER)
     collection = Collection(id=1, name="Test Collection", owner_id=1)
+
+    collection.folder = Folder(id=1, name="TestFolder", collection_id=1)
 
     mock_get_user_by_email.return_value = user
     mock_get_collection_by_id.return_value = collection
