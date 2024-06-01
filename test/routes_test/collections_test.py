@@ -1,19 +1,25 @@
+from datetime import datetime
 from tempfile import NamedTemporaryFile
 import uuid
 import os
 from unittest.mock import MagicMock, Mock, patch
 
+from models.user import User, UserRole
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile
+from fastapi.testclient import TestClient
 from httpx import AsyncClient
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel, create_engine
+from sqlalchemy.sql.expression import func
 
 import routes.collections as collections
 import routes.documents as documents
 import routes.users as users
+import test.routes_test.users_test as users_test
 from utils.security import get_current_user
-from models.collection import Collection
+from models.collection import Collection, CollectionInfo
+
 
 # Set up the database URL to point to your test database
 SQLALCHEMY_DATABASE_URL = "sqlite:///../test.db"
@@ -52,140 +58,164 @@ def temp_file():
         yield temp.name
     os.unlink(temp.name)
 
-# Create a test client
-# @pytest.fixture
-# async def client():
-#     async with AsyncClient(app=app, base_url="http://test") as ac:
-#         yield ac
-
+@pytest.fixture
+def client():
+    with TestClient(app) as client:
+        yield client
 
 
 # Test create_collection endpoint
 @patch("routes.collections.get_current_user", MagicMock(return_value=Mock()))
 @pytest.mark.asyncio
-async def test_create_collection(temp_file):
-    async with AsyncClient(app=app, base_url="http://test") as client:
-        with patch("routes.collections.collections.create_collection") as mock_create_collection:
-            mock_create_collection.return_value = Mock(id=123)
+async def test_create_collection(temp_file, client):
+    with patch("routes.collections.collections.create_collection") as mock_create_collection:
+        mock_create_collection.return_value = Mock(id="550e8400e29b41d4a716446655440000")
 
-            transaction_address = "0x123abc"
+        transaction_address = "0x123abc"
 
-            with open(temp_file, "rb") as f:
-                response = await client.post(
-                    "/collections/",
-                    data={"transaction_address": transaction_address},
-                    files={"file": f}
-                )
-            assert response.status_code == 200
+        with open(temp_file, "rb") as f:
+            response = client.post(
+                "/collections/",
+                data={"transaction_address": transaction_address},
+                files={"file": f}
+            )
+        assert response.status_code == 200
 
-            collection_info = response.json()
-            assert collection_info["message"] == "Collection created successfully"
-            assert "uuid" in collection_info
+        collection_info = response.json()            
+        assert collection_info["message"] == "Collection created successfully"
+        assert "uuid" in collection_info
 
-
-# # Test download_collection endpoint
-# @patch("routes.collections.get_current_user", MagicMock(return_value=Mock()))
-# @pytest.mark.asyncio
-# async def test_download_collection(temp_file):
-#     async with AsyncClient(app=app, base_url="http://test") as client:
-#         with patch("routes.collections.collections.get_collection_by_id") as mock_get_collection_by_id:
-#             mock_collection = Mock(id=uuid.uuid4(), name="Test Collection")
-#             mock_get_collection_by_id.return_value = mock_collection
-#             mock_user = Mock(id=1, email="test@example.com")
-#             mock_file_path = temp_file
-#             with patch("routes.collections.users.get_user_by_email", return_value=mock_user):
-#                 with patch("routes.collections.collections.download_collection", return_value=mock_file_path):
-
-#                     # Send a GET request to download the collection
-#                     response = await client.get(
-#                         "/collections/download",
-#                         params={"col_uuid": str(mock_collection.id), "email": mock_user.email},
-#                     )
-
-#                     print(response.json())
-#                     assert response.status_code == 200
-#                     assert response.content is not None
+        print("Response: ", response.json())
+        return response
+        
 
 
+# Test download_collection endpoint
+@patch("routes.collections.collections.get_collection_by_id")
+@patch("routes.collections.users.get_user_by_email")
+@pytest.mark.asyncio
+async def test_download_collection(mock_get_user_by_email, mock_get_collection_by_id, client):
+    user = User(id=1, name="test_user", email="example@email.com", role=UserRole.USER)
+    collection = Collection(id=1, name="Test Collection", owner_id=1)
+
+    mock_get_user_by_email.return_value = user
+    mock_get_collection_by_id.return_value = collection
+
+    response = client.get(
+        "/collections/download",
+        params={"col_uuid": "550e8400e29b41d4a716446655440000", "email": "example@email.com"},
+    )
+
+    print("Response 3: ", response)
+
+    assert response.status_code == 200
 
 
 
+# Test get_all_collections endpoint - success
+@patch("routes.collections.collections.get_collections")
+@pytest.mark.asyncio
+async def test_get_all_collections(mock_get_collections, client):
+    mock_collections = [
+        Collection(name="Collection 1", owner_id="test_owner_id"),
+        Collection(name="Collection 2", owner_id="test_owner_id"),
+        Collection(name="Collection 3", owner_id="test_owner_id"),
+    ]
+    mock_get_collections.return_value = mock_collections
+
+    register_response = await users_test.test_register_user()
+    user_token = register_response.json()['token']
+
+    response = client.get(
+        "/collections/",
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+
+    assert response.status_code == 200
+    collections_list = response.json()
+    assert len(collections_list) == len(mock_collections)
+
+
+# Test get_user_collections endpoint
+@patch("routes.collections.get_current_user")
+@patch("routes.collections.collections.get_collections_by_user")
+@pytest.mark.asyncio
+async def test_get_user_collections(mock_get_collections_by_user, mock_get_current_user, client):
+    # Prepare mock data
+    user = User(id="150e8400e29b41d4a716446655440001", name="test_user", email="test@example.com", role=UserRole.USER)
+    collections = [
+        CollectionInfo(
+            id="550e8400e29b41d4a716446655440001",
+            name="Collection 1",
+            owner_id="150e8400e29b41d4a716446655440001",
+            documents=[],
+            events=[],
+            created=datetime.now(),
+            last_access=datetime.now()
+        ),
+        CollectionInfo(
+            id="550e8400e29b41d4a716446655439002",
+            name="Collection 2",
+            owner_id="150e8400e29b41d4a716446655440001",
+            documents=[],
+            events=[], 
+            created=datetime.now(),  
+            last_access=datetime.now() 
+        ),
+    ]
+
+    mock_get_current_user.return_value = user
+    mock_get_collections_by_user.return_value = collections
+
+    response = client.get("/collections")
+
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+
+
+
+# Test get_shared_collection endpoint
+@patch("routes.collections.users.get_user_by_email")
+@patch("routes.collections.collections.get_collection_by_id")
+@pytest.mark.asyncio
+async def test_get_shared_collection(mock_get_user_by_email, mock_get_collection_by_id, client):
+    # Define mock data
+    email = "test@example.com"
+    col_uuid = uuid.UUID("550e8400e29b41d4a716446655440001")
+    db_user = {"id": 1, "email": email}  # Mocked user data
+    col_info = {
+        "id": str(col_uuid),
+        "name": "Test Collection",
+        "owner_id": 1,
+        "documents": [],
+        "events": [],
+        "created": datetime.now().isoformat(),
+        "last_access": datetime.now().isoformat()
+    }
+
+    # Mock the functions
+    mock_get_user_by_email.return_value = db_user
+    mock_get_collection_by_id.return_value = col_info
+
+    # Make request to the endpoint
+    response = client.get(
+        f"/collections/shared?col_uuid={col_uuid}&email={email}"
+    )
+
+    # Assert response status code is 200
+    assert response.status_code == 200
+
+    # Assert response data matches the expected collection info
+    assert response.json() == col_info
+
+    # Verify that the mocked functions were called
+    users.get_user_by_email.assert_called_once_with(mock_get_user_by_email.ANY, email)
+    collections.get_collection_by_id.assert_called_once_with(mock_get_collection_by_id.ANY, col_uuid, db_user)
 
 
 
 
 
-
-
-
-# # Test get_all_collections endpoint - success
-# @pytest.mark.asyncio
-# async def test_get_all_collections_success(client, get_test_db):
-#     from models.collection import Collection
-
-#     async with get_test_db() as db:
-#         # Create test collections
-#         test_collections = [
-#             Collection(name="Collection 1", owner_id="test_owner_id"),
-#             Collection(name="Collection 2", owner_id="test_owner_id"),
-#             Collection(name="Collection 3", owner_id="test_owner_id"),
-#         ]
-#         db.add_all(test_collections)
-#         db.commit()
-
-#     # Send a GET request to fetch all collections
-#     response = await client.get("/collections/")
-#     assert response.status_code == 200
-
-#     collections_list = response.json()
-#     assert len(collections_list) == len(test_collections)
-
-#     for collection_data in collections_list:
-#         assert any(collection_data["name"] == collection.name for collection in test_collections)
-
-
-
-# # Test get_user_collections endpoint - success
-# @pytest.mark.asyncio
-# async def test_get_user_collections_success(client, get_test_db):
-#     from models.collection import Collection
-#     from models.user import UserCreate
-#     from storage.user import create_user
-
-#     # Create a test user
-#     async with get_test_db() as db:
-#         test_user = UserCreate(name="Test User", email="test@example.com", password="password", nic="1234567890")
-#         db_user = await create_user(db, user=test_user)
-#         db.commit()
-
-#         # Create some test collections associated with the user
-#         test_collections = [
-#             Collection(name="Collection 1", owner_id=db_user.id),
-#             Collection(name="Collection 2", owner_id=db_user.id),
-#             Collection(name="Collection 3", owner_id=db_user.id),
-#         ]
-#         db.add_all(test_collections)
-#         db.commit()
-
-#     # Authenticate the test user
-#     login_data = {"username": "test@example.com", "password": "password"}
-#     login_response = await client.post("/login", data=login_data)
-
-#     # Extract the authentication token from the login response
-#     auth_token = login_response.json()["access_token"]
-
-#     # Set the authentication token in the client headers
-#     headers = {"Authorization": f"Bearer {auth_token}"}
-
-#     # Send a GET request to fetch the user's collections
-#     response = await client.get("/collections/user", headers=headers)
-#     assert response.status_code == 200
-
-#     user_collections = response.json()
-#     assert len(user_collections) == len(test_collections)
-
-#     for collection_data in user_collections:
-#         assert collection_data["owner_id"] == db_user.id
 
 
 # # Test get_shared_collection endpoint - success
