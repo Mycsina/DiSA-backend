@@ -145,21 +145,17 @@ async def test_get_all_collections(mock_get_collections, client):
 async def test_get_user_collections(mock_get_collections_by_user, mock_get_current_user, client):
     
     userId = uuid.uuid4()
-    user_token = "test_token"
 
     mock_get_current_user.return_value = User(id=userId, name="test_user", email="example@email.com", role=UserRole.USER)
 
     mock_collections = [
-        Collection(name="Collection 1", owner_id=userId),
-        Collection(name="Collection 2", owner_id=userId),
-        Collection(name="Collection 3", owner_id=userId),
+        Collection(id=1, name="Collection 1", owner_id=userId),
+        Collection(id=2, name="Collection 2", owner_id=userId),
+        Collection(id=3, name="Collection 3", owner_id=userId),
     ]
     mock_get_collections_by_user.return_value = mock_collections
 
-    response = client.get(
-        "/collections/user",
-        headers={"Authorization": f"Bearer {user_token}"},
-    )
+    response = client.get("/user")
 
     assert response.status_code == 200
     collections_list = response.json()
