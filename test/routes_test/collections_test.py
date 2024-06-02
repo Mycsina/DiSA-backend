@@ -116,10 +116,13 @@ async def test_download_collection(mock_get_user_by_email, mock_get_collection_b
 @patch("routes.collections.collections.get_collections")
 @pytest.mark.asyncio
 async def test_get_all_collections(mock_get_collections, client):
+
+    ownerId = uuid.uuid4()
+
     mock_collections = [
-        Collection(name="Collection 1", owner_id="test_owner_id"),
-        Collection(name="Collection 2", owner_id="test_owner_id"),
-        Collection(name="Collection 3", owner_id="test_owner_id"),
+        Collection(name="Collection 1", owner_id=ownerId),
+        Collection(name="Collection 2", owner_id=ownerId),
+        Collection(name="Collection 3", owner_id=ownerId),
     ]
     mock_get_collections.return_value = mock_collections
 
