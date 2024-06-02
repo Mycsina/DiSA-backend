@@ -13,7 +13,8 @@ from utils.exceptions import BearerException, CMDFailure
 from utils.security import Token, create_access_token, password_hash, verify_user
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 users_router = APIRouter(
     prefix="/users",
@@ -48,7 +49,11 @@ async def register_with_cmd(user: UserCMDCreate):
             token = create_access_token(data={"sub": str(db_user.id)})
             users.update_user_token(session, db_user, token)
             logger.info(f"User {name} created successfully.")
-            return {"message": f"User {name} created successfully.", "token": token}
+            return {
+                "message": f"User {name} created successfully.",
+                "token": token,
+                "username": db_user.email
+            }
         except Exception as e:
             logger.error(f"Failing to register user with CMD: {e}")
             raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
@@ -71,7 +76,7 @@ async def login_with_user_password(
 
 # TODO - test this
 @users_router.get("/login/cmd")
-async def login_with_cmd(id_token: str) -> Token:
+async def login_with_cmd(id_token: str):
     with Session(engine) as session:
         try:
             nic, name = users.retrieve_nic(id_token)
@@ -82,7 +87,11 @@ async def login_with_cmd(id_token: str) -> Token:
             access_token = create_access_token(data={"sub": str(user.id)})
             users.update_user_token(session, user, access_token)
             logger.info(f"User {name} logged in successfully.")
-            return Token(access_token=access_token, token_type="Bearer")
+            return {
+                "access_token": access_token,
+                "token_type": "Bearer",
+                "username": user.email
+            }
         except Exception as e:
             logger.error(f"Failing to login with CMD: {e}")
             raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
