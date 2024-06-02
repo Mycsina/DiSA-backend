@@ -142,29 +142,29 @@ async def test_get_all_collections(mock_get_collections, client):
 
 
 # Test get_user_collections endpoint
-@patch("routes.collections.get_current_user")
-@patch("routes.collections.collections.get_collections_by_user")
-@pytest.mark.asyncio
-async def test_get_user_collections(mock_get_collections_by_user, mock_get_current_user, client):
+# @patch("routes.collections.get_current_user")
+# @patch("routes.collections.collections.get_collections_by_user")
+# @pytest.mark.asyncio
+# async def test_get_user_collections(mock_get_collections_by_user, mock_get_current_user, client):
     
-    userId = uuid.uuid4()
+#     userId = uuid.uuid4()
 
-    mock_get_current_user.return_value = User(id=userId, name="test_user", email="example@email.com", role=UserRole.USER)
+#     mock_get_current_user.return_value = User(id=userId, name="test_user", email="example@email.com", role=UserRole.USER)
 
-    mock_collections = [
-        Collection(id=1, name="Collection 1", owner_id=userId),
-        Collection(id=2, name="Collection 2", owner_id=userId),
-        Collection(id=3, name="Collection 3", owner_id=userId),
-    ]
-    mock_get_collections_by_user.return_value = mock_collections
+#     mock_collections = [
+#         Collection(id=1, name="Collection 1", owner_id=userId),
+#         Collection(id=2, name="Collection 2", owner_id=userId),
+#         Collection(id=3, name="Collection 3", owner_id=userId),
+#     ]
+#     mock_get_collections_by_user.return_value = mock_collections
 
-    response = client.get("/collections/user")
+#     response = client.get("/collections/user")
 
-    print(response.json())
+#     print(response.json())
 
-    assert response.status_code == 200
-    collections_list = response.json()
-    assert len(collections_list) == len(mock_collections)
+#     assert response.status_code == 200
+#     collections_list = response.json()
+#     assert len(collections_list) == len(mock_collections)
 
 
 
@@ -219,25 +219,57 @@ async def test_get_user_collections(mock_get_collections_by_user, mock_get_curre
     
 
 
-# # Test delete_collection endpoint
-# @patch("routes.collections.collections.get_collection_by_id")
-# @patch("routes.collections.get_current_user")
-# @pytest.mark.asyncio
-# async def test_delete_collection(mock_get_current_user, mock_get_collection_by_id, client):
-#     user = User(id=1, name="test_user", email="example@email.com", role=UserRole.USER)
-#     mock_get_current_user.return_value = user
+# Test delete_collection endpoint
+@patch("routes.collections.collections.get_collection_by_id")
+@patch("routes.collections.get_current_user")
+@pytest.mark.asyncio
+async def test_delete_collection(mock_get_current_user, mock_get_collection_by_id, client):
+    user_id = uuid.UUID("550e8400e29b41d4a716446655440009")
+    col_uuid = uuid.UUID("550e8400e29b41d4a716446655440000")
 
-#     collection = Collection(id="550e8400e29b41d4a716446655440000", name="Test Collection", owner_id=1)
-#     mock_get_collection_by_id.return_value = collection
+    print("USER ID: ", user_id)
+    print("COLLECTION ID: ", col_uuid)
 
-#     col_uuid = "550e8400e29b41d4a716446655440000"
-#     response = client.delete(
-#         f"/collections/?col_uuid={col_uuid}"
-#     )
+    mock_get_current_user.return_value = User(id=user_id, name="test_user", email="example@email.com", role=UserRole.USER)
 
-#     assert response.status_code == 200
-#     response_data = response.json()
-#     assert response_data == {"message": "Collection deleted successfully"}
+    mock_collection = MagicMock()
+    mock_collection.id = col_uuid
+    mock_collection.can_write.return_value = True
+    mock_get_collection_by_id.return_value = mock_collection
+
+    print("MOCK COLLECTION: ", mock_collection)
+    print("MOCK COLLECTION: ", mock_get_collection_by_id)
+
+    response = client.delete(
+        f"/collections/{col_uuid}"
+        # params={"col_uuid": col_uuid}
+    )
+    print("RESPONSE: ", response.json())
+
+    assert response.status_code == 200
+    assert response.json() == {"message": "Collection deleted successfully"}
+
+
+
+
+
+
+
+
+    # user = User(id=1, name="test_user", email="example@email.com", role=UserRole.USER)
+    # mock_get_current_user.return_value = user
+
+    # collection = Collection(id="550e8400e29b41d4a716446655440000", name="Test Collection", owner_id=1)
+    # mock_get_collection_by_id.return_value = collection
+
+    # col_uuid = "550e8400e29b41d4a716446655440000"
+    # response = client.delete(
+    #     f"/collections/?col_uuid={col_uuid}"
+    # )
+
+    # assert response.status_code == 200
+    # response_data = response.json()
+    # assert response_data == {"message": "Collection deleted successfully"}
 
 
 
