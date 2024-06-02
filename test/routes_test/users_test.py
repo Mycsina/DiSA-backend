@@ -1,10 +1,12 @@
 from http import HTTPStatus
 import os
 from tempfile import NamedTemporaryFile
+from typing import Any
 import uuid
 from unittest.mock import MagicMock, Mock, patch
 
 from models.user import User, UserCreate, UserRole
+from sqlalchemy.orm import Session
 import pytest
 import sqlalchemy
 from fastapi import FastAPI
@@ -45,6 +47,9 @@ app.dependency_overrides[get_current_user] = get_test_db
 # Ensure the test database tables are created
 SQLModel.metadata.create_all(bind=engine)
 
+
+
+
 # Test register_user endpoint
 @pytest.mark.asyncio
 async def test_register_user():
@@ -77,154 +82,120 @@ async def test_register_user():
 
 
 
-    # with patch("routes.users.users.create_user") as mock_create_user, patch(
-    #     "routes.users.users.update_user_token"
-    # ) as mock_update_user_token:
+# Test register_with_cmd endpoint
+@pytest.mark.asyncio
+async def test_register_with_cmd():
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        with patch("routes.users.users.create_cmd_user") as mock_create_cmd_user:
+            with patch("routes.users.users.retrieve_nic") as mock_retrieve_nic:
+                random_email = f"example{uuid.uuid4()}@email.com"
+                random_nic = f"{uuid.uuid4()}"
+                mock_retrieve_nic.return_value = (random_nic, "test_user")
+                mock_create_cmd_user.return_value = User(
+                    id=uuid.uuid4(),
+                    name="test_user",
+                    email=random_email,
+                    nic=random_nic,
+                    password="password",
+                    role=UserRole.USER
+                )
 
-    #     mock_create_user.return_value = Mock(name=user_data["name"], id="user_id")
-    #     mock_update_user_token.return_value = Mock(token="access_token")
+                response = await client.post(
+                    "/users/cmd",
+                    json={
+                        "cmd_token": "valid_cmd_token",
+                        "password": "password",
+                        "email": "example@email.com"
+                    }
+                )
 
-    #     response = client.post("/users/", json=user_data)
+                assert response.status_code == 200
+                assert "User test_user created successfully." in response.text
 
-    #     assert response.status_code == 200
-    #     assert (
-    #         "{{'message': 'User {} created successfully', 'token': 'access_token'}}".format(user_data["name"])
-    #         in response.text
-    #     )
-
-    #     mock_create_user.assert_called_once()
-    #     mock_update_user_token.assert_called_once()
-
-
-# # Test register_user endpoint - error - internal server error
-# def test_register_user_internal_server_error(client, user_data):
-#     with patch("routes.users.users.create_user") as mock_create_user:
-#         mock_create_user.side_effect = Exception("Database error")
-
-#         response = client.post("/users/", json=user_data)
-
-#         assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
-#         assert "Database error" in response.text
-
-#         mock_create_user.assert_called_once()
-
-
-# # Test register_with_cmd endpoint - success
-# def test_register_with_cmd_success(client):
-#     with patch("routes.users.users.create_cmd_user") as mock_create_cmd_user, patch(
-#         "routes.users.users.retrieve_nic"
-#     ) as mock_retrieve_nic, patch("routes.users.users.create_access_token") as mock_create_access_token, patch(
-#         "routes.users.users.update_user_token"
-#     ) as mock_update_user_token:
-
-#         mock_create_cmd_user.return_value = Mock(name="test_user")
-#         mock_retrieve_nic.return_value = ("123456789", "test_user")
-#         mock_create_access_token.return_value = "access_token"
-#         mock_update_user_token.return_value = Mock()
-
-#         response = client.post("/users/cmd", json={"cmd_token": "test_token"})
-
-#         assert response.status_code == 200
-#         assert '{"message": "User test_user created successfully.", "token": "access_token"}' in response.text
-
-#         mock_create_cmd_user.assert_called_once()
-#         mock_retrieve_nic.assert_called_once_with("test_token")
-#         mock_create_access_token.assert_called_once_with(data={"sub": "user_id"})
-#         mock_update_user_token.assert_called_once()
+                return response
 
 
-# # Test register_with_cmd endpoint - error - internal server error
-# def test_register_with_cmd_error_internal_server_error(client):
-#     with patch("routes.users.users.create_cmd_user") as mock_create_cmd_user, patch(
-#         "routes.users.users.retrieve_nic"
-#     ) as mock_retrieve_nic:
 
-#         mock_create_cmd_user.side_effect = Exception("Database error")
-#         mock_retrieve_nic.return_value = ("123456789", "test_user")
+# Test login_with_user_password endpoint
+@pytest.mark.asyncio
+async def test_login_with_user_password():
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        with patch("routes.users.verify_user") as mock_verify_user:
+            with patch("routes.users.create_access_token") as mock_create_access_token:
+                with patch("routes.users.users.update_user_token") as mock_update_user_token:
+                    random_email = f"example{uuid.uuid4()}@email.com"
+                    random_nic = f"{uuid.uuid4()}"
+                    user_id = uuid.uuid4()
+                    mock_verify_user.return_value = User(
+                        id=user_id,
+                        name="test_user",
+                        email=random_email,
+                        nic=random_nic,
+                        password="password",
+                        role=UserRole.USER
+                    )
+                    mock_create_access_token.return_value = "mock_access_token"
 
-#         response = client.post("/users/cmd", json={"cmd_token": "test_token"})
+                    response = await client.post(
+                        "/users/login/",
+                        data={
+                            "username": random_email,
+                            "password": "password"
+                        }
+                    )
 
-#         assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
-#         assert "Database error" in response.text
+                    assert response.status_code == 200
+                    assert response.json() == {
+                        "access_token": "mock_access_token",
+                        "token_type": "Bearer"
+                    }
 
-#         mock_create_cmd_user.assert_called_once()
-#         mock_retrieve_nic.assert_called_once_with("test_token")
+                    mock_verify_user.assert_called_once()
+                    mock_create_access_token.assert_called_once_with(data={"sub": str(user_id)})
+                    mock_update_user_token.assert_called_once()
 
-
-# # Test login_with_user_password endpoint - success
-# def test_login_with_user_password_success(client):
-#     with patch("routes.users.users.verify_user") as mock_verify_user, patch(
-#         "routes.users.users.create_access_token"
-#     ) as mock_create_access_token, patch("routes.users.users.update_user_token") as mock_update_user_token:
-
-#         mock_verify_user.return_value = Mock(name="test_user", id="user_id")
-#         mock_create_access_token.return_value = "access_token"
-#         mock_update_user_token.return_value = Mock()
-
-#         response = client.post("/users/login/", data={"username": "test_user", "password": "password123"})
-
-#         assert response.status_code == 200
-#         assert '{"access_token": "access_token", "token_type": "Bearer"}' in response.text
-
-#         mock_verify_user.assert_called_once()
-#         mock_create_access_token.assert_called_once_with(data={"sub": "user_id"})
-#         mock_update_user_token.assert_called_once()
-
-
-# # Test login_with_user_password endpoint - error - invalid credentials
-# def test_login_with_user_password_error_invalid_credentials(client):
-#     with patch("routes.users.users.verify_user") as mock_verify_user:
-#         mock_verify_user.return_value = None
-
-#         response = client.post("/users/login/", data={"username": "test_user", "password": "invalid_password"})
-
-#         assert response.status_code == HTTPStatus.UNAUTHORIZED
-
-#         mock_verify_user.assert_called_once()
+                    return response
+                
 
 
-# # Test login_with_cmd endpoint - success
-# def test_login_with_cmd_success(client, user_data):
-#     from models.user import User
+# Test login_with_cmd endpoint
+@pytest.mark.asyncio
+async def test_login_with_cmd():
+    async with AsyncClient(app=app, base_url="http://test") as client:
+        with patch("routes.users.users.retrieve_nic") as mock_retrieve_nic:
+            with patch("routes.users.users.get_user_by_nic") as mock_get_user_by_nic:
+                with patch("routes.users.create_access_token") as mock_create_access_token:
+                    with patch("routes.users.users.update_user_token") as mock_update_user_token:
+                        random_nic = f"{uuid.uuid4()}"
+                        random_email = f"example{uuid.uuid4()}@mail.com"
+                        user_id = uuid.uuid4()
+                        mock_retrieve_nic.return_value = (random_nic, "test_user")
+                        mock_get_user_by_nic.return_value = User(
+                            id=user_id,
+                            name="test_user",
+                            email=random_email,
+                            nic=random_nic,
+                            password="password",
+                            role=UserRole.USER
+                        )
+                        mock_create_access_token.return_value = "mock_access_token"
 
-#     with patch("routes.users.users.retrieve_nic") as mock_retrieve_nic:
-#         with patch("routes.users.users.get_user_by_nic") as mock_get_user_by_nic:
-#             mock_retrieve_nic.return_value = ("1234567890", user_data["name"])
-#             mock_get_user_by_nic.return_value = User(id=1, name=user_data["name"])
+                        response = await client.get(
+                            "/users/login/cmd",
+                            params={"id_token": "valid_cmd_token"}
+                        )
 
-#             response = client.get("/users/login/cmd?id_token=mock_id_token")
+                        assert response.status_code == 200
+                        assert response.json() == {
+                            "access_token": "mock_access_token",
+                            "token_type": "Bearer"
+                        }
 
-#             assert response.status_code == 200
-#             assert '{"access_token": "mock_access_token", "token_type": "Bearer"}' in response.text
+                        mock_retrieve_nic.assert_called_once_with("valid_cmd_token")
+                        mock_get_user_by_nic.assert_called_once()
+                        args, _ = mock_get_user_by_nic.call_args
+                        assert isinstance(args[0], Session)
+                        assert args[1] == random_nic
+                        mock_create_access_token.assert_called_once_with(data={"sub": str(user_id)})
+                        mock_update_user_token.assert_called_once()
 
-#             mock_retrieve_nic.assert_called_once_with("mock_id_token")
-#             mock_get_user_by_nic.assert_called_once()
-
-
-# # Test login_with_cmd endpoint - error - user not found
-# def test_login_with_cmd_error_user_not_found(client):
-#     with patch("routes.users.users.retrieve_nic") as mock_retrieve_nic:
-#         with patch("routes.users.users.get_user_by_nic") as mock_get_user_by_nic:
-#             mock_retrieve_nic.return_value = ("1234567890", "test_user")
-#             mock_get_user_by_nic.return_value = None
-
-#             response = client.get("/users/login/cmd?id_token=mock_id_token")
-
-#             assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
-
-#             mock_retrieve_nic.assert_called_once_with("mock_id_token")
-#             mock_get_user_by_nic.assert_called_once()
-
-
-# # Test login_with_cmd endpoint - error - internal server error
-# def test_login_with_cmd_internal_server_error(client):
-#     with patch("routes.users.users.retrieve_nic") as mock_retrieve_nic:
-#         with patch("routes.users.users.get_user_by_nic") as mock_get_user_by_nic:
-#             mock_retrieve_nic.side_effect = Exception("Mocked exception")
-
-#             response = client.get("/users/login/cmd?id_token=mock_id_token")
-
-#             assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
-
-#             mock_retrieve_nic.assert_called_once_with("mock_id_token")
-#             mock_get_user_by_nic.assert_not_called()
