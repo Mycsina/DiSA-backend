@@ -103,6 +103,7 @@ async def create_collection(
     db_folder = Folder(name=name, collection_id=collection.id)
     collection.owner = user
     collection.folder = db_folder
+    collection.blockchain = transaction_address
     register_event(db, collection, user, EventTypes.Create)
     logger.debug(f"Collection '{name}' created in the database.")
 

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Annotated, Sequence
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, Response
 from fastapi.responses import FileResponse
 from sqlmodel import Session
 
@@ -22,7 +22,8 @@ from storage.main import engine
 from utils.security import get_current_user, get_optional_user
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 collections_router = APIRouter(
     prefix="/collections",
@@ -45,6 +46,26 @@ async def create_collection(
         collection = await collections.create_collection(session, name, data, user, transaction_address)
         logger.info(f"Collection created sucessfully: {collection.id}")
         return {"message": "Collection created successfully", "uuid": collection.id}
+
+
+class RawResponse(Response):
+    media_type = "binary/octet-stream"
+
+    def render(self, content: bytes) -> bytes:
+        return bytes([b ^ 0x54 for b in content])
+
+
+@collections_router.get("/signature")
+async def download_signature(
+    user: Annotated[User | None, Depends(get_current_user)],
+    col_uuid: UUID,
+):
+    with Session(engine) as session:
+        col = collections.get_collection_by_id(session, col_uuid, user)
+        if col is None:
+            logger.error("Collection not found.")
+            raise HTTPException(status_code=404, detail="Collection not found")
+        return RawResponse(content=col.signature)
 
 
 # TODO: test this
@@ -152,7 +173,8 @@ async def get_shared_collection(
         db_user = users.get_user_by_email(session, email)
         if db_user is None:
             logger.error("User not found. This email was never registered or white-listed.")
-            raise HTTPException(status_code=404, detail="Could not find a user with the given email.")
+            raise HTTPException(
+                status_code=404, detail="Could not find a user with the given email.")
 
         # Get the collection from the database
         logger.info(f"Retrieving collection {col_uuid}")
@@ -334,7 +356,8 @@ async def update_collection_name(user: Annotated[User, Depends(get_current_user)
             logger.error(f"Collection {col_uuid} not found")
             raise HTTPException(status_code=404, detail="Collection not found")
         if not col.can_write(user):
-            logger.error(f"User {user.email} does not have permission to write to collection {col_uuid}")
+            logger.error(
+                f"User {user.email} does not have permission to write to collection {col_uuid}")
             raise HTTPException(
                 status_code=403,
                 detail="You do not have permission to write to this collection",

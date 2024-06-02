@@ -102,6 +102,7 @@ class Collection(CollectionBase, table=True):
     owner_id: UUID | None = Field(default=None, foreign_key="user.id", nullable=False)
     signature: bytes | None = Field(default=None)
     manifest: str | None = Field(default=None)
+    blockchain: str | None = Field(default=None)
 
     folder: Folder = Relationship(back_populates="collection")
     owner: "User" = Relationship(back_populates="collections")
@@ -163,6 +164,7 @@ class CollectionInfo(CollectionBase):
     created: datetime
     last_access: datetime
     manifest: str | None = None
+    blockchain: str | None = None
 
     @staticmethod
     def populate(collection: Collection) -> "CollectionInfo":
@@ -177,5 +179,6 @@ class CollectionInfo(CollectionBase):
             created=collection.created(),
             last_access=collection.last_access(),
             manifest=collection.manifest,
+            blockchain=str(collection.blockchain)
         )
         return self
