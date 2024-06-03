@@ -1,0 +1,10 @@
+include: #incorate their content into this docker-compose
+  - paperless-ngx/docker-compose.yml
+services:
+  backend:
+    image: python:3.11
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/app
+    command: bash -c "cd /app && pip install poetry && poetry install --no-root && poetry run hypercorn start:app --bind '0.0.0.0:8000' --reload"
